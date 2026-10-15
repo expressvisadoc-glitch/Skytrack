@@ -35,14 +35,14 @@ class AppUpdateRepositoryTest {
                     tagName = "v1.1.0",
                     name = "SkyTrack v1.1.0",
                     body = "### What's Changed\n- Offline sync added\n- Bug fixes",
-                    htmlUrl = "https://github.com/KickOffWithAmal/SkyTrack/releases/tag/v1.1.0",
+                    htmlUrl = "https://github.com/expressvisadoc-glitch/Skytrack/releases/tag/v1.1.0",
                     draft = false,
                     prerelease = false,
                     publishedAt = "2026-10-15T10:00:00Z",
                     assets = listOf(
                         GithubReleaseAssetDto(
                             name = "SkyTrack-v1.1.0.apk",
-                            browserDownloadUrl = "https://github.com/KickOffWithAmal/SkyTrack/releases/download/v1.1.0/SkyTrack-v1.1.0.apk"
+                            browserDownloadUrl = "https://github.com/expressvisadoc-glitch/Skytrack/releases/download/v1.1.0/SkyTrack-v1.1.0.apk"
                         )
                     )
                 )
@@ -55,8 +55,8 @@ class AppUpdateRepositoryTest {
         assertNotNull(updateInfo)
         assertEquals("1.1.0", updateInfo?.versionName)
         assertEquals("SkyTrack v1.1.0", updateInfo?.releaseTitle)
-        assertEquals("https://github.com/KickOffWithAmal/SkyTrack/releases/tag/v1.1.0", updateInfo?.releaseUrl)
-        assertEquals("https://github.com/KickOffWithAmal/SkyTrack/releases/download/v1.1.0/SkyTrack-v1.1.0.apk", updateInfo?.downloadUrl)
+        assertEquals("https://github.com/expressvisadoc-glitch/Skytrack/releases/tag/v1.1.0", updateInfo?.releaseUrl)
+        assertEquals("https://github.com/expressvisadoc-glitch/Skytrack/releases/download/v1.1.0/SkyTrack-v1.1.0.apk", updateInfo?.downloadUrl)
         assertEquals("### What's Changed\n- Offline sync added\n- Bug fixes", updateInfo?.releaseNotes)
     }
 

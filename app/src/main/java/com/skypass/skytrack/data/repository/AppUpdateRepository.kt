@@ -52,7 +52,7 @@ class AppUpdateRepository @Inject constructor(
             }
 
             val releaseUrl = release.htmlUrl?.takeIf { it.isNotBlank() }
-                ?: "https://github.com/KickOffWithAmal/SkyTrack/releases"
+                ?: "https://github.com/expressvisadoc-glitch/Skytrack/releases"
 
             val downloadUrl = apkAsset?.browserDownloadUrl ?: releaseUrl
 

@@ -62,7 +62,7 @@ interface GithubReleaseApi {
     /**
      * Fetches the latest published release (ignores drafts and prereleases automatically).
      */
-    @GET("repos/KickOffWithAmal/SkyTrack/releases/latest")
+    @GET("repos/expressvisadoc-glitch/Skytrack/releases/latest")
     @Headers(
         "User-Agent: SkyTrack-Android-App",
         "Accept: application/vnd.github+json"
@@ -72,7 +72,7 @@ interface GithubReleaseApi {
     /**
      * Lists recent releases for the repository.
      */
-    @GET("repos/KickOffWithAmal/SkyTrack/releases")
+    @GET("repos/expressvisadoc-glitch/Skytrack/releases")
     @Headers(
         "User-Agent: SkyTrack-Android-App",
         "Accept: application/vnd.github+json"
