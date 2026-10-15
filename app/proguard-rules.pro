@@ -1,21 +1,35 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Proguard / R8 rules for SkyTrack Android App
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Keep all data models used by Gson & Retrofit serialization/deserialization
+-keepclassmembers class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+-keep class com.skypass.skytrack.data.remote.** { *; }
+-keepclassmembers class com.skypass.skytrack.data.remote.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+-keep class com.skypass.skytrack.data.local.** { *; }
+-keepclassmembers class com.skypass.skytrack.data.local.** { *; }
+
+-keep class com.skypass.skytrack.data.repository.** { *; }
+-keepclassmembers class com.skypass.skytrack.data.repository.** { *; }
+
+-keep class com.skypass.skytrack.data.update.** { *; }
+-keepclassmembers class com.skypass.skytrack.data.update.** { *; }
+
+# Keep Room database, entities, and DAOs
+-keep class * extends androidx.room.RoomDatabase
+-keep @androidx.room.Entity class * { *; }
+-keep @androidx.room.Dao interface * { *; }
+-dontwarn androidx.room.paging.**
+
+# Keep Retrofit interfaces
+-keepattributes Signature
+-keepattributes *Annotation*
+-keepclassmembers,allowobfuscation interface * {
+    @retrofit2.http.* <methods>;
+}
+
+# Preserve line numbers and source files for clean stack traces
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

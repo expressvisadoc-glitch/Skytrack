@@ -3,52 +3,52 @@ package com.skypass.skytrack.data.remote
 import com.google.gson.annotations.SerializedName
 
 data class LoginRequest(
-    val action: String = "login",
-    val employeeId: String,
-    val password: String
+    @SerializedName("action") val action: String = "login",
+    @SerializedName("employeeId") val employeeId: String,
+    @SerializedName("password") val password: String
 )
 
 data class LoginResponse(
-    val success: Boolean,
-    val message: String? = null,
-    val error: String? = null,
-    val session: SessionDto? = null,
-    val employee: EmployeeDto? = null
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("error") val error: String? = null,
+    @SerializedName("session") val session: SessionDto? = null,
+    @SerializedName("employee") val employee: EmployeeDto? = null
 )
 
 data class SessionDto(
-    val token: String,
-    val expiresInSeconds: Long
+    @SerializedName("token") val token: String,
+    @SerializedName("expiresInSeconds") val expiresInSeconds: Long
 )
 
 data class EmployeeDto(
-    val employeeId: String,
-    val name: String,
-    val role: String,
-    val managerName: String? = null,
-    val departmentName: String? = null,
-    val workShiftName: String? = null,
-    val attendancePercent: String? = null,
-    val leaveQuota: String? = null,
-    val ytdOvertime: String? = null,
-    @com.google.gson.annotations.SerializedName("createdAt", alternate = ["created_at"])
+    @SerializedName("employeeId") val employeeId: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("role") val role: String,
+    @SerializedName("managerName") val managerName: String? = null,
+    @SerializedName("departmentName") val departmentName: String? = null,
+    @SerializedName("workShiftName") val workShiftName: String? = null,
+    @SerializedName("attendancePercent") val attendancePercent: String? = null,
+    @SerializedName("leaveQuota") val leaveQuota: String? = null,
+    @SerializedName("ytdOvertime") val ytdOvertime: String? = null,
+    @SerializedName("createdAt", alternate = ["created_at"])
     val createdAt: String? = null,
-    @com.google.gson.annotations.SerializedName("joiningDate", alternate = ["joining_date"])
+    @SerializedName("joiningDate", alternate = ["joining_date"])
     val joiningDate: String? = null,
-    @com.google.gson.annotations.SerializedName("profilePhotoUrl", alternate = ["profile_photo_url", "avatar"])
+    @SerializedName("profilePhotoUrl", alternate = ["profile_photo_url", "avatar"])
     val profilePhotoUrl: String? = null
 )
 
 data class AttendanceRequest(
-    val action: String,
-    val token: String
+    @SerializedName("action") val action: String,
+    @SerializedName("token") val token: String
 )
 
 data class AttendanceResponse(
-    val success: Boolean,
-    val message: String? = null,
-    val error: String? = null,
-    val attendance: AttendanceDto? = null
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("error") val error: String? = null,
+    @SerializedName("attendance") val attendance: AttendanceDto? = null
 )
 
 data class AttendanceDto(
@@ -69,20 +69,20 @@ data class AttendanceDto(
 )
 
 data class LeaveSubmitRequest(
-    val action: String = "leave_submit",
-    val token: String,
-    val from: String,
-    val to: String,
-    val type: String,
-    val reason: String
+    @SerializedName("action") val action: String = "leave_submit",
+    @SerializedName("token") val token: String,
+    @SerializedName("from") val from: String,
+    @SerializedName("to") val to: String,
+    @SerializedName("type") val type: String,
+    @SerializedName("reason") val reason: String
 )
 
 data class LeaveResponse(
-    val success: Boolean,
-    val message: String? = null,
-    val error: String? = null,
-    val leave: LeaveDto? = null,
-    val leaves: List<LeaveDto>? = null
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("error") val error: String? = null,
+    @SerializedName("leave") val leave: LeaveDto? = null,
+    @SerializedName("leaves") val leaves: List<LeaveDto>? = null
 )
 
 data class LeaveDto(
@@ -102,48 +102,48 @@ data class LeaveDto(
 )
 
 data class LeaveBalanceRequest(
-    val action: String = "leave_balance"
+    @SerializedName("action") val action: String = "leave_balance"
 )
 
 data class LeaveHistoryRequest(
-    val action: String = "leave_history"
+    @SerializedName("action") val action: String = "leave_history"
 )
 
 data class CancelLeaveRequest(
-    val action: String = "cancel_leave",
+    @SerializedName("action") val action: String = "cancel_leave",
     @SerializedName("requestId", alternate = ["request_id", "id"]) val requestId: String
 )
 
 data class CancelLeaveResponse(
-    val success: Boolean,
-    val message: String? = null,
-    val error: String? = null,
-    val leave: LeaveDto? = null
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("error") val error: String? = null,
+    @SerializedName("leave") val leave: LeaveDto? = null
 )
 
 data class LeaveBalanceItemDto(
-    val allocated: Float? = null,
-    val adjusted: Float? = null,
-    val used: Float? = null,
-    val balance: Float? = null
+    @SerializedName("allocated") val allocated: Float? = null,
+    @SerializedName("adjusted") val adjusted: Float? = null,
+    @SerializedName("used") val used: Float? = null,
+    @SerializedName("balance") val balance: Float? = null
 )
 
 data class LeaveBalanceDataDto(
-    val casual: LeaveBalanceItemDto? = null,
-    val sick: LeaveBalanceItemDto? = null
+    @SerializedName("casual") val casual: LeaveBalanceItemDto? = null,
+    @SerializedName("sick") val sick: LeaveBalanceItemDto? = null
 )
 
 data class LeaveBalanceResponse(
-    val success: Boolean,
-    val message: String? = null,
-    val error: String? = null,
-    val balance: LeaveBalanceDataDto? = null
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("error") val error: String? = null,
+    @SerializedName("balance") val balance: LeaveBalanceDataDto? = null
 )
 
 data class MonthlyAttendanceRequest(
-    val action: String = "attendance_monthly",
-    val token: String,
-    val month: String
+    @SerializedName("action") val action: String = "attendance_monthly",
+    @SerializedName("token") val token: String,
+    @SerializedName("month") val month: String
 )
 
 data class MonthlyAttendanceResponse(
