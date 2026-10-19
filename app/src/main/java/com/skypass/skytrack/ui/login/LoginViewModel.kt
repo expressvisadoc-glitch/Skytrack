@@ -62,6 +62,10 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    fun resetState() {
+        _state.value = LoginState.Idle
+    }
+
     private fun messageFor(error: Throwable): String =
         com.skypass.skytrack.data.remote.ApiErrorExtractor.getMessage(
             error,

@@ -84,7 +84,7 @@ class AuthRepository @Inject constructor(
             profilePhotoUrl = response.employee.profilePhotoUrl.orEmpty()
         ).also {
             sessionDataStore.saveSession(it)
-            sessionDataStore.saveRememberMe(rememberMe, trimmedEmployeeId, password)
+            sessionDataStore.saveRememberMe(rememberMe, trimmedEmployeeId)
         }
     }
 

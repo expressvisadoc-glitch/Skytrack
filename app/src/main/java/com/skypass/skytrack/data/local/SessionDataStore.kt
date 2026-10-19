@@ -83,7 +83,7 @@ class SessionDataStore @Inject constructor(
             val remember = prefs[Keys.rememberMe] ?: false
             RememberedAccount(
                 employeeId = if (remember) prefs[Keys.savedEmployeeId].orEmpty() else "",
-                password = if (remember) prefs[Keys.savedPassword].orEmpty() else "",
+                password = "",
                 rememberMe = remember
             )
         }
@@ -116,16 +116,16 @@ class SessionDataStore @Inject constructor(
         }
     }
 
-    suspend fun saveRememberMe(remember: Boolean, employeeId: String, password: String) {
+    suspend fun saveRememberMe(remember: Boolean, employeeId: String, password: String = "") {
         context.sessionDataStore.edit { prefs ->
             prefs[Keys.rememberMe] = remember
             if (remember) {
                 prefs[Keys.savedEmployeeId] = employeeId.trim()
-                prefs[Keys.savedPassword] = password
             } else {
                 prefs.remove(Keys.savedEmployeeId)
-                prefs.remove(Keys.savedPassword)
             }
+            // Never persist user password in DataStore
+            prefs.remove(Keys.savedPassword)
         }
     }
 
@@ -142,6 +142,7 @@ class SessionDataStore @Inject constructor(
             prefs.remove(Keys.leaveQuota)
             prefs.remove(Keys.ytdOvertime)
             prefs.remove(Keys.profilePhotoUrl)
+            prefs.remove(Keys.savedPassword)
         }
     }
 

@@ -52,6 +52,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -91,11 +93,15 @@ fun LoginScreen(
     onClearError: () -> Unit,
     rememberedAccount: RememberedAccount? = null
 ) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+
     var employeeId by rememberSaveable(rememberedAccount?.employeeId) {
         mutableStateOf(if (rememberedAccount?.rememberMe == true) rememberedAccount.employeeId else "")
     }
-    var password by rememberSaveable(rememberedAccount?.password) {
-        mutableStateOf(if (rememberedAccount?.rememberMe == true) rememberedAccount.password else "")
+    // Password must always be entered manually by the user; never pre-filled or saved
+    var password by rememberSaveable {
+        mutableStateOf("")
     }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var rememberMe by rememberSaveable(rememberedAccount?.rememberMe) {
@@ -108,10 +114,10 @@ fun LoginScreen(
 
     LaunchedEffect(rememberedAccount) {
         val account = rememberedAccount ?: return@LaunchedEffect
-        if (!hasLoadedRemembered || (employeeId.isBlank() && password.isBlank())) {
+        if (!hasLoadedRemembered || employeeId.isBlank()) {
             if (account.rememberMe && account.employeeId.isNotBlank()) {
                 employeeId = account.employeeId
-                password = account.password
+                password = ""
                 rememberMe = true
                 hasLoadedRemembered = true
             } else if (!account.rememberMe) {
@@ -252,6 +258,8 @@ fun LoginScreen(
                             ),
                             keyboardActions = KeyboardActions(
                                 onDone = {
+                                    keyboardController?.hide()
+                                    focusManager.clearFocus()
                                     if (!loading && employeeId.isNotBlank() && password.isNotBlank()) {
                                         onLogin(employeeId, password, rememberMe)
                                     }

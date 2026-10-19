@@ -52,6 +52,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.skypass.skytrack.data.local.Session
 import com.skypass.skytrack.data.remote.AttendanceDto
 import kotlinx.coroutines.delay
@@ -110,6 +113,20 @@ fun HomeScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showComingSoonDialog by remember { mutableStateOf(false) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshTimers()
+                viewModel.loadToday(session)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     LaunchedEffect(session.token) {
         viewModel.loadToday(session)
@@ -520,9 +537,14 @@ fun OnBreakHero(
     state: HomeUiState,
     onResumeWork: () -> Unit
 ) {
-    val breakMinutes = state.breakSeconds / 60
+    val breakHours = state.breakSeconds / 3600
+    val breakMinutes = (state.breakSeconds % 3600) / 60
     val breakSecs = state.breakSeconds % 60
-    val breakTimeDisplay = String.format(Locale.ENGLISH, "%02d:%02d", breakMinutes, breakSecs)
+    val breakTimeDisplay = if (breakHours > 0) {
+        String.format(Locale.ENGLISH, "%02d:%02d:%02d", breakHours, breakMinutes, breakSecs)
+    } else {
+        String.format(Locale.ENGLISH, "%02d:%02d", breakMinutes, breakSecs)
+    }
 
     val radarTransition = rememberInfiniteTransition(label = "amberPulse")
     val pulseDotAlpha by radarTransition.animateFloat(

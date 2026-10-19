@@ -113,6 +113,12 @@ class MainActivity : ComponentActivity() {
                         isSessionLoaded = true
                     }
 
+                    LaunchedEffect(session) {
+                        if (session == null) {
+                            loginViewModel.resetState()
+                        }
+                    }
+
                     // Check for updates asynchronously once the splash finishes
                     LaunchedEffect(splashAnimationFinished) {
                         if (splashAnimationFinished) {
@@ -178,6 +184,7 @@ class MainActivity : ComponentActivity() {
                                     session = session!!,
                                     viewModel = profileViewModel,
                                     onLogout = {
+                                        loginViewModel.resetState()
                                         lifecycleScope.launch {
                                             authRepository.logout()
                                         }
@@ -249,6 +256,7 @@ class MainActivity : ComponentActivity() {
                                     session = session!!,
                                     viewModel = homeViewModel,
                                     onLogout = {
+                                        loginViewModel.resetState()
                                         lifecycleScope.launch {
                                             authRepository.logout()
                                         }

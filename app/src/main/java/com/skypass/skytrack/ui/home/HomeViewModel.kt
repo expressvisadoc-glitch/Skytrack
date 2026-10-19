@@ -66,11 +66,9 @@ class HomeViewModel @Inject constructor(
                     val baseBreakSeconds = resolvedAttendance?.totalBreakSeconds ?: 0L
                     var extraBreakSeconds = 0L
                     if (isOnBreak) {
-                        try {
-                            val breakStartInstant = java.time.Instant.parse(resolvedAttendance!!.breakStartedAt)
+                        val breakStartInstant = parseInstantSafe(resolvedAttendance?.breakStartedAt)
+                        if (breakStartInstant != null) {
                             extraBreakSeconds = maxOf(0L, java.time.Duration.between(breakStartInstant, java.time.Instant.now()).seconds)
-                        } catch (e: Exception) {
-                            // ignore parsing error
                         }
                     }
 
@@ -170,14 +168,32 @@ class HomeViewModel @Inject constructor(
             result.onSuccess { attendance ->
                 val serverIsOnBreak = attendance?.isOnBreak ?: nextBreak
                 val baseBreakSeconds = attendance?.totalBreakSeconds ?: _state.value.breakSeconds
+                val currentBreakStartedAt = attendance?.breakStartedAt
+                    ?: if (serverIsOnBreak) java.time.Instant.now().toString() else null
+
+                val resolvedAttendance = (attendance ?: _state.value.attendance)?.copy(
+                    breakStartedAt = currentBreakStartedAt,
+                    isOnBreak = serverIsOnBreak
+                )
+
+                var extraBreakSeconds = 0L
+                if (serverIsOnBreak) {
+                    val breakStartInstant = parseInstantSafe(currentBreakStartedAt)
+                    if (breakStartInstant != null) {
+                        extraBreakSeconds = maxOf(0L, java.time.Duration.between(breakStartInstant, java.time.Instant.now()).seconds)
+                    }
+                }
+
                 _state.value = _state.value.copy(
-                    attendance = attendance ?: _state.value.attendance,
+                    attendance = resolvedAttendance ?: _state.value.attendance,
                     isOnBreak = serverIsOnBreak,
-                    breakSeconds = baseBreakSeconds,
+                    breakSeconds = if (serverIsOnBreak) maxOf(0L, baseBreakSeconds + extraBreakSeconds) else baseBreakSeconds,
                     isActionLoading = false
                 )
                 if (serverIsOnBreak) {
                     startBreakTimer()
+                } else {
+                    breakJob?.cancel()
                 }
             }.onFailure { error ->
                 _state.value = _state.value.copy(
@@ -227,10 +243,9 @@ class HomeViewModel @Inject constructor(
                             val baseBreakSeconds = finalAttendance.totalBreakSeconds ?: 0L
                             var extraBreakSeconds = 0L
                             if (isOnBreak) {
-                                try {
-                                    val breakStartInstant = java.time.Instant.parse(finalAttendance.breakStartedAt)
+                                val breakStartInstant = parseInstantSafe(finalAttendance.breakStartedAt)
+                                if (breakStartInstant != null) {
                                     extraBreakSeconds = maxOf(0L, java.time.Duration.between(breakStartInstant, java.time.Instant.now()).seconds)
-                                } catch (e: Exception) {
                                 }
                             }
 
@@ -328,15 +343,54 @@ class HomeViewModel @Inject constructor(
         )
     }
 
+    fun refreshTimers() {
+        if (_state.value.isOnBreak) {
+            val currentAttendance = _state.value.attendance ?: return
+            val baseSeconds = currentAttendance.totalBreakSeconds ?: 0L
+            val startInstant = parseInstantSafe(currentAttendance.breakStartedAt)
+            if (startInstant != null) {
+                val liveExtra = maxOf(0L, java.time.Duration.between(startInstant, java.time.Instant.now()).seconds)
+                _state.value = _state.value.copy(
+                    breakSeconds = maxOf(0L, baseSeconds + liveExtra)
+                )
+            }
+        }
+    }
+
     private fun startBreakTimer() {
         breakJob?.cancel()
         breakJob = viewModelScope.launch {
             while (_state.value.isOnBreak) {
+                val currentAttendance = _state.value.attendance
+                val baseSeconds = currentAttendance?.totalBreakSeconds ?: 0L
+                val startInstant = parseInstantSafe(currentAttendance?.breakStartedAt)
+
+                if (startInstant != null) {
+                    val liveExtra = maxOf(0L, java.time.Duration.between(startInstant, java.time.Instant.now()).seconds)
+                    _state.value = _state.value.copy(
+                        breakSeconds = maxOf(0L, baseSeconds + liveExtra)
+                    )
+                }
                 delay(1000)
-                _state.value = _state.value.copy(
-                    breakSeconds = _state.value.breakSeconds + 1
-                )
             }
+        }
+    }
+
+    private fun parseInstantSafe(timeStr: String?): java.time.Instant? {
+        if (timeStr.isNullOrBlank()) return null
+        val trimmed = timeStr.trim()
+        return try {
+            try {
+                java.time.Instant.parse(trimmed)
+            } catch (_: Exception) {
+                try {
+                    java.time.OffsetDateTime.parse(trimmed).toInstant()
+                } catch (_: Exception) {
+                    java.time.LocalDateTime.parse(trimmed).atZone(java.time.ZoneId.of("Asia/Kolkata")).toInstant()
+                }
+            }
+        } catch (_: Exception) {
+            null
         }
     }
 }
