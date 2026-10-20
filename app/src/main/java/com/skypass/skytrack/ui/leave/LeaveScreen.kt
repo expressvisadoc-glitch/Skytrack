@@ -472,7 +472,8 @@ fun LeaveScreen(
                     )
 
                     // Approver Handover Note
-                    ApproverHandoverCard(managerName = session.managerName)
+                    val effectiveManager = state.managerName?.takeIf { it.isNotBlank() } ?: session.managerName
+                    ApproverHandoverCard(managerName = effectiveManager)
                 }
             }
 
@@ -1706,9 +1707,7 @@ private fun LeaveReasonInput(
 // -------------------------------------------------------------
 @Composable
 private fun ApproverHandoverCard(managerName: String) {
-    val cleanManagerName = managerName
-        .takeIf { it.isNotBlank() && !it.contains("Dinesh Pillai", ignoreCase = true) }
-        ?.trim()
+    val cleanManagerName = managerName.trim()
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -1740,7 +1739,7 @@ private fun ApproverHandoverCard(managerName: String) {
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (!cleanManagerName.isNullOrBlank()) "Reporting Manager: $cleanManagerName" else "Reporting Manager: Not Assigned",
+                    text = if (cleanManagerName.isNotBlank()) "Reporting Manager: $cleanManagerName" else "Reporting Manager: Not Assigned",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate800,
@@ -1748,7 +1747,7 @@ private fun ApproverHandoverCard(managerName: String) {
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = if (!cleanManagerName.isNullOrBlank()) "Request will be routed to $cleanManagerName for approval" else "Request will be routed to Admin & HR Desk",
+                    text = if (cleanManagerName.isNotBlank()) "Request will be routed to $cleanManagerName for approval" else "Request will be routed to Admin & HR Desk",
                     fontSize = 11.sp,
                     color = Slate400,
                     maxLines = 1,

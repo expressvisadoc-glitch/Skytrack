@@ -22,6 +22,7 @@ data class LeaveUiState(
     val leaves: List<LeaveDto> = emptyList(),
     val balance: LeaveBalanceDataDto? = null,
     val holidays: List<PublicHoliday> = emptyList(),
+    val managerName: String? = null,
     val isLoading: Boolean = true,
     val isSubmitting: Boolean = false,
     val isCancelling: Boolean = false,
@@ -42,7 +43,21 @@ class LeaveViewModel @Inject constructor(
 
     fun loadHistory(session: Session) {
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
+            _state.value = _state.value.copy(
+                isLoading = true,
+                error = null,
+                managerName = session.managerName.takeIf { it.isNotBlank() } ?: _state.value.managerName
+            )
+
+            // Refresh profile in background to fetch fresh manager assignment
+            launch {
+                authRepository.refreshProfile(session.token).onSuccess { emp ->
+                    val freshMgr = emp.managerName?.takeIf { it.isNotBlank() }
+                    if (freshMgr != null) {
+                        _state.value = _state.value.copy(managerName = freshMgr)
+                    }
+                }
+            }
 
             val holidaysResult = repository.publicHolidays(session.token)
             val holidays = holidaysResult.getOrNull()

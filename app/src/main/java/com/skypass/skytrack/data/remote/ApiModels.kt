@@ -25,9 +25,9 @@ data class EmployeeDto(
     @SerializedName("employeeId") val employeeId: String,
     @SerializedName("name") val name: String,
     @SerializedName("role") val role: String,
-    @SerializedName("managerName") val managerName: String? = null,
-    @SerializedName("departmentName") val departmentName: String? = null,
-    @SerializedName("workShiftName") val workShiftName: String? = null,
+    @SerializedName("managerName", alternate = ["manager_name", "reporting_manager_name", "reportingManager", "reporting_manager"]) val managerName: String? = null,
+    @SerializedName("departmentName", alternate = ["department_name", "department"]) val departmentName: String? = null,
+    @SerializedName("workShiftName", alternate = ["work_shift_name", "shift"]) val workShiftName: String? = null,
     @SerializedName("attendancePercent") val attendancePercent: String? = null,
     @SerializedName("leaveQuota") val leaveQuota: String? = null,
     @SerializedName("ytdOvertime") val ytdOvertime: String? = null,
@@ -82,7 +82,8 @@ data class LeaveResponse(
     @SerializedName("message") val message: String? = null,
     @SerializedName("error") val error: String? = null,
     @SerializedName("leave") val leave: LeaveDto? = null,
-    @SerializedName("leaves") val leaves: List<LeaveDto>? = null
+    @SerializedName("leaves") val leaves: List<LeaveDto>? = null,
+    @SerializedName("managerName", alternate = ["manager_name", "reporting_manager_name", "reportingManager", "reporting_manager"]) val managerName: String? = null
 )
 
 data class LeaveDto(
@@ -137,7 +138,8 @@ data class LeaveBalanceResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("message") val message: String? = null,
     @SerializedName("error") val error: String? = null,
-    @SerializedName("balance") val balance: LeaveBalanceDataDto? = null
+    @SerializedName("balance") val balance: LeaveBalanceDataDto? = null,
+    @SerializedName("managerName", alternate = ["manager_name", "reporting_manager_name", "reportingManager", "reporting_manager"]) val managerName: String? = null
 )
 
 data class MonthlyAttendanceRequest(

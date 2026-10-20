@@ -63,29 +63,29 @@ class ProfileViewModel @Inject constructor(
     fun loadProfileData(session: Session) {
         val currentMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"))
 
-        // Extract and clean session organization values, stripping old hardcoded defaults
-        val manager = session.managerName
-            .takeIf { it.isNotBlank() && !it.contains("Dinesh Pillai", ignoreCase = true) }
+        // Extract and clean session organization values
+        var manager = session.managerName
+            .takeIf { it.isNotBlank() }
             ?: "Not Assigned"
 
-        val dept = session.departmentName
-            .takeIf { it.isNotBlank() && !it.contains("Schengen & UK", ignoreCase = true) }
+        var dept = session.departmentName
+            .takeIf { it.isNotBlank() }
             ?: "Unassigned"
 
-        val shift = session.workShiftName
-            .takeIf { it.isNotBlank() && !it.contains("General (09:00", ignoreCase = true) }
+        var shift = session.workShiftName
+            .takeIf { it.isNotBlank() }
             ?: "Standard Shift (09:00 AM - 06:00 PM)"
 
         val initialAttendance = session.attendancePercent
-            .takeIf { it.isNotBlank() && it != "96.4%" && it != "100.0%" }
+            .takeIf { it.isNotBlank() }
             ?: "0.0%"
 
         val initialLeaveQuota = session.leaveQuota
-            .takeIf { it.isNotBlank() && it != "11 Days" && it != "18 Days" }
+            .takeIf { it.isNotBlank() }
             ?: "0 Days"
 
         val initialOvertime = session.ytdOvertime
-            .takeIf { it.isNotBlank() && it != "+14h 30m" }
+            .takeIf { it.isNotBlank() }
             ?: "0h 0m"
 
         val initialPhoto = session.profilePhotoUrl
@@ -113,9 +113,24 @@ class ProfileViewModel @Inject constructor(
                     if (!freshPhoto.isNullOrBlank()) {
                         _uiState.update { it.copy(profilePhotoUrl = freshPhoto) }
                     }
+                    val freshManager = emp.managerName?.takeIf { it.isNotBlank() }
+                    if (freshManager != null) {
+                        manager = freshManager
+                        _uiState.update { it.copy(reportingManager = freshManager) }
+                    }
+                    val freshDept = emp.departmentName?.takeIf { it.isNotBlank() }
+                    if (freshDept != null) {
+                        dept = freshDept
+                        _uiState.update { it.copy(department = freshDept) }
+                    }
+                    val freshShift = emp.workShiftName?.takeIf { it.isNotBlank() }
+                    if (freshShift != null) {
+                        shift = freshShift
+                        _uiState.update { it.copy(workShift = freshShift) }
+                    }
                 }
             } catch (_: Exception) {
-                // Keep cached photo on error
+                // Keep cached values on error
             }
 
             // 1. Calculate live Attendance % and Overtime from Monthly Attendance records

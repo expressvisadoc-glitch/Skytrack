@@ -124,7 +124,10 @@ class AuthRepository @Inject constructor(
             val updated = currentSession.copy(
                 profilePhotoUrl = photoUrl.ifBlank { currentSession.profilePhotoUrl },
                 name = emp.name.ifBlank { currentSession.name },
-                role = emp.role.ifBlank { currentSession.role }
+                role = emp.role.ifBlank { currentSession.role },
+                managerName = emp.managerName?.takeIf { it.isNotBlank() } ?: currentSession.managerName,
+                departmentName = emp.departmentName?.takeIf { it.isNotBlank() } ?: currentSession.departmentName,
+                workShiftName = emp.workShiftName?.takeIf { it.isNotBlank() } ?: currentSession.workShiftName
             )
             sessionDataStore.saveSession(updated)
         }
