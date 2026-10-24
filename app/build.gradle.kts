@@ -37,6 +37,19 @@ android {
             )
             signingConfig = signingConfigs.getByName("debug")
         }
+        // Test build against a staging Supabase project. Installs alongside the production app
+        // (separate application id). Set skytrackStagingApiUrl in ~/.gradle/gradle.properties.
+        create("staging") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".staging"
+            versionNameSuffix = "-staging"
+            matchingFallbacks += listOf("debug")
+            buildConfigField(
+                type = "String",
+                name = "SKYTRACK_API_URL",
+                value = "\"${providers.gradleProperty("skytrackStagingApiUrl").getOrElse("")}\""
+            )
+        }
     }
 
     lint {
