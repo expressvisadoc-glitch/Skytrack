@@ -1,5 +1,6 @@
 package com.skypass.skytrack.data.repository
 
+import com.google.gson.Gson
 import com.skypass.skytrack.BuildConfig
 import com.skypass.skytrack.data.local.ConnectivityObserver
 import com.skypass.skytrack.data.local.db.dao.AttendanceDao
@@ -8,6 +9,7 @@ import com.skypass.skytrack.data.local.db.entity.AttendanceCacheEntity
 import com.skypass.skytrack.data.local.db.entity.PendingActionEntity
 import com.skypass.skytrack.data.remote.AttendanceDto
 import com.skypass.skytrack.data.remote.AttendanceRequest
+import com.skypass.skytrack.data.remote.LocationPayloadDto
 import com.skypass.skytrack.data.remote.SkyTrackApi
 import java.io.IOException
 import java.time.Instant
@@ -20,7 +22,8 @@ class AttendanceRepository @Inject constructor(
     private val api: SkyTrackApi,
     private val attendanceDao: AttendanceDao,
     private val pendingActionDao: PendingActionDao,
-    private val connectivityObserver: ConnectivityObserver
+    private val connectivityObserver: ConnectivityObserver,
+    private val gson: Gson
 ) {
     suspend fun getToday(token: String): Result<AttendanceDto?> = runCatching {
         val todayStr = LocalDate.now().toString()
@@ -70,25 +73,41 @@ class AttendanceRepository @Inject constructor(
         }
     }
 
-    suspend fun startWork(token: String): Result<AttendanceDto?> =
-        performWriteAction("start_work", token)
+    // Check-in and check-out are verified against the office geofence by the server,
+    // so they need a live connection and a fresh location fix (never queued offline).
+    suspend fun startWork(token: String, location: LocationPayloadDto): Result<AttendanceDto?> =
+        performWriteAction("start_work", token, location)
 
-    suspend fun endWork(token: String): Result<AttendanceDto?> =
-        performWriteAction("end_work", token)
+    suspend fun endWork(token: String, location: LocationPayloadDto): Result<AttendanceDto?> =
+        performWriteAction("end_work", token, location)
 
-    suspend fun startBreak(token: String): Result<AttendanceDto?> =
-        performWriteAction("start_break", token)
+    // Break location is recorded when available but never blocks the break.
+    suspend fun startBreak(token: String, location: LocationPayloadDto? = null): Result<AttendanceDto?> =
+        performWriteAction("start_break", token, location)
 
-    suspend fun resumeWork(token: String): Result<AttendanceDto?> =
-        performWriteAction("resume_work", token)
+    suspend fun resumeWork(token: String, location: LocationPayloadDto? = null): Result<AttendanceDto?> =
+        performWriteAction("resume_work", token, location)
 
-    private suspend fun performWriteAction(action: String, token: String): Result<AttendanceDto?> =
+    private fun requiresLiveVerification(action: String): Boolean =
+        action == "start_work" || action == "end_work"
+
+    private fun networkRequiredException(action: String) = AttendanceApiException(
+        code = "NETWORK_REQUIRED",
+        message = "${if (action == "start_work") "Check-in" else "Check-out"} needs an internet connection so your location can be verified. Please reconnect and try again."
+    )
+
+    private suspend fun performWriteAction(
+        action: String,
+        token: String,
+        location: LocationPayloadDto?
+    ): Result<AttendanceDto?> =
         runCatching {
             val todayStr = LocalDate.now().toString()
             val isOnline = connectivityObserver.isConnected()
 
             if (!isOnline) {
-                return@runCatching handleOfflineWrite(action, token, todayStr)
+                if (requiresLiveVerification(action)) throw networkRequiredException(action)
+                return@runCatching handleOfflineWrite(action, token, todayStr, location)
             }
 
             try {
@@ -96,27 +115,27 @@ class AttendanceRepository @Inject constructor(
                     "start_work" -> api.startWork(
                         BuildConfig.SKYTRACK_API_URL,
                         "Bearer $token",
-                        AttendanceRequest(action, token)
+                        AttendanceRequest(action, token, location)
                     )
                     "end_work" -> api.endWork(
                         BuildConfig.SKYTRACK_API_URL,
                         "Bearer $token",
-                        AttendanceRequest(action, token)
+                        AttendanceRequest(action, token, location)
                     )
                     "start_break" -> api.startBreak(
                         BuildConfig.SKYTRACK_API_URL,
                         "Bearer $token",
-                        AttendanceRequest(action, token)
+                        AttendanceRequest(action, token, location)
                     )
                     "resume_work" -> api.resumeWork(
                         BuildConfig.SKYTRACK_API_URL,
                         "Bearer $token",
-                        AttendanceRequest(action, token)
+                        AttendanceRequest(action, token, location)
                     )
                     else -> api.attendanceToday(
                         BuildConfig.SKYTRACK_API_URL,
                         "Bearer $token",
-                        AttendanceRequest(action, token)
+                        AttendanceRequest(action, token, location)
                     )
                 }
 
@@ -137,26 +156,33 @@ class AttendanceRepository @Inject constructor(
                 }
                 attendance
             } catch (httpException: retrofit2.HttpException) {
-                val friendly = com.skypass.skytrack.data.remote.ApiErrorExtractor.getMessage(
+                val (errorCode, friendly) = com.skypass.skytrack.data.remote.ApiErrorExtractor.extractCodeAndMessage(
                     httpException,
                     "Attendance request failed. Please try again."
                 )
                 throw AttendanceApiException(
-                    code = "HTTP_${httpException.code()}",
+                    code = errorCode ?: "HTTP_${httpException.code()}",
                     message = friendly
                 )
             } catch (ioException: IOException) {
+                if (requiresLiveVerification(action)) throw networkRequiredException(action)
                 // Network failure during write -> fallback to offline queue
-                handleOfflineWrite(action, token, todayStr)
+                handleOfflineWrite(action, token, todayStr, location)
             }
         }
 
-    private suspend fun handleOfflineWrite(action: String, token: String, todayStr: String): AttendanceDto {
-        // Queue the action
+    private suspend fun handleOfflineWrite(
+        action: String,
+        token: String,
+        todayStr: String,
+        location: LocationPayloadDto?
+    ): AttendanceDto {
+        // Queue the action (with its location, recorded by the server as captured earlier)
         pendingActionDao.insert(
             PendingActionEntity(
                 actionType = action.uppercase(),
-                token = token
+                token = token,
+                payloadJson = location?.let { gson.toJson(it) }
             )
         )
 

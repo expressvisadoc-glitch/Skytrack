@@ -41,7 +41,38 @@ data class EmployeeDto(
 
 data class AttendanceRequest(
     @SerializedName("action") val action: String,
-    @SerializedName("token") val token: String
+    @SerializedName("token") val token: String,
+    // Omitted from the JSON body when null (Gson skips nulls by default)
+    @SerializedName("location") val location: LocationPayloadDto? = null
+)
+
+data class LocationPayloadDto(
+    @SerializedName("latitude") val latitude: Double,
+    @SerializedName("longitude") val longitude: Double,
+    @SerializedName("accuracy") val accuracy: Float,
+    @SerializedName("capturedAt") val capturedAt: String,
+    @SerializedName("ageMs") val ageMs: Long,
+    @SerializedName("isMock") val isMock: Boolean,
+    @SerializedName("platform") val platform: String = "android"
+)
+
+data class GeofenceConfigResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("error") val error: String? = null,
+    @SerializedName("geofence") val geofence: GeofenceConfigDto? = null
+)
+
+data class GeofenceConfigDto(
+    @SerializedName("configured") val configured: Boolean = false,
+    @SerializedName("active") val active: Boolean = false,
+    @SerializedName("officeName") val officeName: String? = null,
+    @SerializedName("latitude") val latitude: Double? = null,
+    @SerializedName("longitude") val longitude: Double? = null,
+    @SerializedName("radiusMeters") val radiusMeters: Int? = null,
+    @SerializedName("maxAccuracyMeters") val maxAccuracyMeters: Int? = null,
+    @SerializedName("maxLocationAgeSeconds") val maxLocationAgeSeconds: Int? = null,
+    @SerializedName("updatedAt") val updatedAt: String? = null
 )
 
 data class AttendanceResponse(

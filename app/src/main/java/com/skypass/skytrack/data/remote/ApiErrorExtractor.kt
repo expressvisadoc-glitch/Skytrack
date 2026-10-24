@@ -58,6 +58,34 @@ object ApiErrorExtractor {
         return null
     }
 
+    /**
+     * Reads the error body once and returns its machine-readable `error` code together with a
+     * user-friendly message. The error body can only be consumed once per response.
+     */
+    fun extractCodeAndMessage(httpException: HttpException, defaultMessage: String): Pair<String?, String> {
+        val errorBody = try {
+            httpException.response()?.errorBody()?.string()
+        } catch (_: Exception) {
+            null
+        }
+
+        if (!errorBody.isNullOrBlank()) {
+            try {
+                val json = JsonParser.parseString(errorBody).asJsonObject
+                val error = json.get("error")?.takeIf { it.isJsonPrimitive }?.asString?.takeIf { it.isNotBlank() }
+                val message = json.get("message")?.takeIf { it.isJsonPrimitive }?.asString?.takeIf { it.isNotBlank() }
+                return when {
+                    message != null -> error to cleanErrorString(message, defaultMessage)
+                    error != null -> error to formatErrorCodeToUserFriendly(error)
+                    else -> null to mapHttpCode(httpException.code(), defaultMessage)
+                }
+            } catch (_: Exception) {
+                // Not valid JSON
+            }
+        }
+        return null to mapHttpCode(httpException.code(), defaultMessage)
+    }
+
     fun mapHttpCode(code: Int, defaultMessage: String): String {
         return when (code) {
             400 -> "Invalid request. Please check your inputs."

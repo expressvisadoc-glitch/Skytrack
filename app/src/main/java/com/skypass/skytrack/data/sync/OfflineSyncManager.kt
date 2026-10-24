@@ -9,6 +9,7 @@ import com.skypass.skytrack.data.local.db.entity.AttendanceCacheEntity
 import com.skypass.skytrack.data.local.db.entity.PendingActionEntity
 import com.skypass.skytrack.data.remote.AttendanceRequest
 import com.skypass.skytrack.data.remote.LeaveSubmitRequest
+import com.skypass.skytrack.data.remote.LocationPayloadDto
 import com.skypass.skytrack.data.remote.SkyTrackApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -84,6 +85,15 @@ class OfflineSyncManager @Inject constructor(
         return allSuccess
     }
 
+    private fun queuedLocation(action: PendingActionEntity): LocationPayloadDto? =
+        action.payloadJson?.let {
+            try {
+                gson.fromJson(it, LocationPayloadDto::class.java)
+            } catch (_: Exception) {
+                null
+            }
+        }
+
     private suspend fun processAction(action: PendingActionEntity): Boolean {
         return try {
             when (action.actionType) {
@@ -113,7 +123,7 @@ class OfflineSyncManager @Inject constructor(
                     val resp = api.startBreak(
                         BuildConfig.SKYTRACK_API_URL,
                         "Bearer ${action.token}",
-                        AttendanceRequest("start_break", action.token)
+                        AttendanceRequest("start_break", action.token, queuedLocation(action))
                     )
                     if (resp.success && resp.attendance != null) {
                         attendanceDao.insertOrUpdate(AttendanceCacheEntity.fromDto(resp.attendance))
@@ -124,7 +134,7 @@ class OfflineSyncManager @Inject constructor(
                     val resp = api.resumeWork(
                         BuildConfig.SKYTRACK_API_URL,
                         "Bearer ${action.token}",
-                        AttendanceRequest("resume_work", action.token)
+                        AttendanceRequest("resume_work", action.token, queuedLocation(action))
                     )
                     if (resp.success && resp.attendance != null) {
                         attendanceDao.insertOrUpdate(AttendanceCacheEntity.fromDto(resp.attendance))

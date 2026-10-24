@@ -3,10 +3,16 @@ package com.skypass.skytrack.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.skypass.skytrack.data.local.Session
+import com.skypass.skytrack.data.location.DeviceLocationProvider
+import com.skypass.skytrack.data.location.GeofenceEvaluator
+import com.skypass.skytrack.data.location.GeofenceFeedback
+import com.skypass.skytrack.data.location.LocationFix
+import com.skypass.skytrack.data.location.LocationResult
 import com.skypass.skytrack.data.remote.AttendanceDto
 import com.skypass.skytrack.data.repository.AttendanceApiException
 import com.skypass.skytrack.data.repository.AttendanceRepository
 import com.skypass.skytrack.data.repository.AuthRepository
+import com.skypass.skytrack.data.repository.GeofenceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.net.ConnectException
 import java.net.UnknownHostException
@@ -16,6 +22,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,19 +38,97 @@ data class HomeUiState(
     val isOnBreak: Boolean = false,
     val breakSeconds: Long = 0L,
     val error: String? = null,
-    val signedOut: Boolean = false
+    val signedOut: Boolean = false,
+    // Advisory in-app geofence feedback; the server makes the final check-in / check-out decision.
+    val geofence: GeofenceFeedback? = null
 )
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val attendanceRepository: AttendanceRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val geofenceRepository: GeofenceRepository,
+    private val locationProvider: DeviceLocationProvider
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
 
     private var breakJob: Job? = null
+    private var geofenceJob: Job? = null
+
+    /**
+     * Refreshes the in-app geofence guidance with a fresh fix and the latest server settings.
+     * Never prompts for permission; the screen requests it when the employee acts.
+     */
+    fun refreshGeofence(session: Session) {
+        geofenceJob?.cancel()
+        if (!locationProvider.hasPermission()) {
+            _state.value = _state.value.copy(geofence = GeofenceFeedback(GeofenceFeedback.Kind.PERMISSION_REQUIRED))
+            return
+        }
+        geofenceJob = viewModelScope.launch {
+            _state.value = _state.value.copy(geofence = GeofenceFeedback(GeofenceFeedback.Kind.CHECKING))
+            if (!geofenceRepository.isOnline()) {
+                _state.value = _state.value.copy(geofence = GeofenceFeedback(GeofenceFeedback.Kind.OFFLINE))
+                return@launch
+            }
+
+            val configRequest = async { geofenceRepository.fetchConfig(session.token) }
+            val location = locationProvider.getCurrentLocation()
+            val config = configRequest.await().getOrNull()
+            val configError = configRequest.await().exceptionOrNull()
+
+            val feedback = config?.let { GeofenceEvaluator.unavailableFeedback(it) } ?: when {
+                location !is LocationResult.Success -> GeofenceEvaluator.fromLocationFailure(location)
+                config == null -> GeofenceFeedback(
+                    GeofenceFeedback.Kind.CONFIG_UNAVAILABLE,
+                    detail = configError?.message
+                )
+                else -> GeofenceEvaluator.evaluate(config, location.fix)
+            }
+            _state.value = _state.value.copy(geofence = feedback)
+        }
+    }
+
+    fun onLocationPermissionDenied(isCheckIn: Boolean) {
+        _state.value = _state.value.copy(
+            geofence = GeofenceFeedback(GeofenceFeedback.Kind.PERMISSION_REQUIRED),
+            error = GeofenceEvaluator.actionBlockedMessage(LocationResult.PermissionDenied, isCheckIn)
+        )
+    }
+
+    /**
+     * Gets a fresh fix for check-in / check-out. Returns null (and reports why) when the
+     * action cannot be attempted. A cached fix or cached settings are never reused here.
+     */
+    private suspend fun acquireFixForAction(isCheckIn: Boolean): LocationFix? {
+        if (!geofenceRepository.isOnline()) {
+            _state.value = _state.value.copy(
+                isActionLoading = false,
+                geofence = GeofenceFeedback(GeofenceFeedback.Kind.OFFLINE),
+                error = "${if (isCheckIn) "Check-in" else "Check-out"} needs an internet connection so your location can be verified. Please reconnect and try again."
+            )
+            return null
+        }
+        return when (val result = locationProvider.getCurrentLocation()) {
+            is LocationResult.Success -> result.fix
+            else -> {
+                _state.value = _state.value.copy(
+                    isActionLoading = false,
+                    geofence = GeofenceEvaluator.fromLocationFailure(result),
+                    error = GeofenceEvaluator.actionBlockedMessage(result, isCheckIn)
+                )
+                null
+            }
+        }
+    }
+
+    /** Best-effort fix for breaks: recorded when available, never blocks the break. */
+    private suspend fun acquireFixForBreak(): LocationFix? {
+        if (!locationProvider.hasPermission()) return null
+        return (locationProvider.getCurrentLocation(BREAK_LOCATION_TIMEOUT_MS) as? LocationResult.Success)?.fix
+    }
 
     fun loadToday(session: Session) {
         viewModelScope.launch {
@@ -92,26 +177,36 @@ class HomeViewModel @Inject constructor(
     }
 
     fun startWork(session: Session) {
-        val nowTime = java.time.Instant.now().toString()
-        val current = AttendanceDto(
-            date = LocalDate.now().toString(),
-            employeeId = session.employeeId,
-            name = session.name,
-            login = nowTime
-        )
+        if (_state.value.isActionLoading) {
+            return
+        }
+        val previousAttendance = _state.value.attendance
+        _state.value = _state.value.copy(isActionLoading = true, error = null)
 
-        // Optimistically set login so UI cleanly enters State 2
-        _state.value = _state.value.copy(
-            attendance = current,
-            isActionLoading = true,
-            isStartingWork = true,
-            isOnBreak = false,
-            breakSeconds = 0L,
-            error = null
-        )
+        viewModelScope.launch {
+            val fix = acquireFixForAction(isCheckIn = true) ?: return@launch
 
-        performAction(session, isStart = true) {
-            attendanceRepository.startWork(session.token)
+            val nowTime = java.time.Instant.now().toString()
+            val current = AttendanceDto(
+                date = LocalDate.now().toString(),
+                employeeId = session.employeeId,
+                name = session.name,
+                login = nowTime
+            )
+
+            // Optimistically set login so UI cleanly enters State 2
+            _state.value = _state.value.copy(
+                attendance = current,
+                isActionLoading = true,
+                isStartingWork = true,
+                isOnBreak = false,
+                breakSeconds = 0L,
+                error = null
+            )
+
+            performAction(session, isStart = true, previousAttendance = previousAttendance) {
+                attendanceRepository.startWork(session.token, fix.toPayload())
+            }
         }
     }
 
@@ -125,24 +220,31 @@ class HomeViewModel @Inject constructor(
             )
             return
         }
-        val nowTime = java.time.Instant.now().toString()
-        val current = _state.value.attendance ?: AttendanceDto(
-            date = LocalDate.now().toString(),
-            employeeId = session.employeeId,
-            name = session.name
-        )
+        val previousAttendance = _state.value.attendance
+        _state.value = _state.value.copy(isActionLoading = true, error = null)
 
-        _state.value = _state.value.copy(
-            attendance = current.copy(logout = nowTime),
-            isActionLoading = true,
-            isEndingWork = true,
-            isOnBreak = false,
-            error = null
-        )
-        breakJob?.cancel()
+        viewModelScope.launch {
+            val fix = acquireFixForAction(isCheckIn = false) ?: return@launch
 
-        performAction(session, isStart = false) {
-            attendanceRepository.endWork(session.token)
+            val nowTime = java.time.Instant.now().toString()
+            val current = _state.value.attendance ?: AttendanceDto(
+                date = LocalDate.now().toString(),
+                employeeId = session.employeeId,
+                name = session.name
+            )
+
+            _state.value = _state.value.copy(
+                attendance = current.copy(logout = nowTime),
+                isActionLoading = true,
+                isEndingWork = true,
+                isOnBreak = false,
+                error = null
+            )
+            breakJob?.cancel()
+
+            performAction(session, isStart = false, previousAttendance = previousAttendance) {
+                attendanceRepository.endWork(session.token, fix.toPayload())
+            }
         }
     }
 
@@ -159,10 +261,11 @@ class HomeViewModel @Inject constructor(
         breakJob?.cancel()
 
         viewModelScope.launch {
+            val location = acquireFixForBreak()?.toPayload()
             val result = if (nextBreak) {
-                attendanceRepository.startBreak(session.token)
+                attendanceRepository.startBreak(session.token, location)
             } else {
-                attendanceRepository.resumeWork(session.token)
+                attendanceRepository.resumeWork(session.token, location)
             }
 
             result.onSuccess { attendance ->
@@ -211,6 +314,7 @@ class HomeViewModel @Inject constructor(
     private fun performAction(
         session: Session,
         isStart: Boolean,
+        previousAttendance: AttendanceDto?,
         action: suspend () -> Result<AttendanceDto?>
     ) {
         viewModelScope.launch {
@@ -285,12 +389,17 @@ class HomeViewModel @Inject constructor(
                             error = null
                         )
                     } else {
+                        // Roll back the optimistic check-in / check-out: the server rejected it
                         _state.value = _state.value.copy(
+                            attendance = previousAttendance,
                             isActionLoading = false,
                             isStartingWork = false,
                             isEndingWork = false
                         )
                         handleFailure(error, keepAttendance = true)
+                        if (apiError?.code?.lowercase() in GEOFENCE_ERROR_CODES) {
+                            refreshGeofence(session)
+                        }
                     }
                 }
         }
@@ -392,5 +501,21 @@ class HomeViewModel @Inject constructor(
         } catch (_: Exception) {
             null
         }
+    }
+
+    private companion object {
+        const val BREAK_LOCATION_TIMEOUT_MS = 8_000L
+
+        val GEOFENCE_ERROR_CODES = setOf(
+            "outside_geofence",
+            "location_accuracy_too_low",
+            "location_stale",
+            "location_timestamp_invalid",
+            "mock_location_detected",
+            "invalid_location",
+            "location_required",
+            "geofence_not_configured",
+            "geofence_inactive"
+        )
     }
 }

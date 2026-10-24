@@ -42,6 +42,13 @@ interface SkyTrackApi {
     ): AttendanceResponse
 
     @POST
+    suspend fun geofenceConfig(
+        @Url endpoint: String,
+        @Header("Authorization") authorization: String,
+        @Body request: AttendanceRequest
+    ): GeofenceConfigResponse
+
+    @POST
     suspend fun attendanceToday(
         @Url endpoint: String,
         @Header("Authorization") authorization: String,

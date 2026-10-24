@@ -1,5 +1,13 @@
 package com.skypass.skytrack.ui.home
 
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -49,9 +57,11 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -113,6 +123,39 @@ fun HomeScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showComingSoonDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    // Location permission is requested only when the employee checks in or out (foreground only)
+    var pendingLocationAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var pendingIsCheckIn by remember { mutableStateOf(true) }
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        val action = pendingLocationAction
+        pendingLocationAction = null
+        if (grants.values.any { it }) {
+            viewModel.refreshGeofence(session)
+            action?.invoke()
+        } else if (action != null) {
+            viewModel.onLocationPermissionDenied(pendingIsCheckIn)
+        } else {
+            viewModel.refreshGeofence(session)
+        }
+    }
+    val requestLocationPermission = {
+        locationPermissionLauncher.launch(
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        )
+    }
+    val runWithLocationPermission: (Boolean, () -> Unit) -> Unit = { isCheckIn, action ->
+        if (hasLocationPermission(context)) {
+            action()
+        } else {
+            pendingLocationAction = action
+            pendingIsCheckIn = isCheckIn
+            requestLocationPermission()
+        }
+    }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -120,6 +163,9 @@ fun HomeScreen(
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refreshTimers()
                 viewModel.loadToday(session)
+                if (viewModel.state.value.attendance?.logout.isNullOrBlank()) {
+                    viewModel.refreshGeofence(session)
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -205,6 +251,28 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Office geofence guidance (advisory; the server makes the final decision)
+            val geofence = state.geofence
+            if (!hasEnded && geofence != null) {
+                GeofenceStatusCard(
+                    feedback = geofence,
+                    onRetry = { viewModel.refreshGeofence(session) },
+                    onRequestPermission = { requestLocationPermission() },
+                    onOpenAppSettings = {
+                        context.startActivity(
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    },
+                    onOpenLocationSettings = {
+                        context.startActivity(
+                            Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             // Attendance Action Area:
             // State 1: Ready to Check-In
             // State 2: Active Working / Take Break Hero
@@ -234,9 +302,9 @@ fun HomeScreen(
                     state = state,
                     onAction = {
                         if (!hasStarted) {
-                            viewModel.startWork(session)
+                            runWithLocationPermission(true) { viewModel.startWork(session) }
                         } else if (!hasEnded) {
-                            viewModel.endWork(session)
+                            runWithLocationPermission(false) { viewModel.endWork(session) }
                         }
                     }
                 )
@@ -259,7 +327,7 @@ fun HomeScreen(
                 CheckOutActionButton(
                     isLoading = state.isActionLoading || state.isEndingWork,
                     isOnBreak = state.isOnBreak,
-                    onEndShift = { viewModel.endWork(session) }
+                    onEndShift = { runWithLocationPermission(false) { viewModel.endWork(session) } }
                 )
             }
         }
@@ -1394,6 +1462,10 @@ fun DockedBottomNavigationBar(
         onProfileClick = onProfileClick
     )
 }
+
+private fun hasLocationPermission(context: Context): Boolean =
+    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
 private fun parseInstant(timeStr: String?): java.time.Instant {
     if (timeStr.isNullOrBlank()) return java.time.Instant.now()
