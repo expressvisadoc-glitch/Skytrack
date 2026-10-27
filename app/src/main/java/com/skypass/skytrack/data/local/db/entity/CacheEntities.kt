@@ -44,7 +44,7 @@ data class AttendanceCacheEntity(
     )
 
     companion object {
-        fun fromDto(dto: AttendanceDto, fallbackDate: String = LocalDate.now().toString()): AttendanceCacheEntity {
+        fun fromDto(dto: AttendanceDto, fallbackDate: String = com.skypass.skytrack.util.AttendanceDates.today()): AttendanceCacheEntity {
             val dateKey = dto.date?.takeIf { it.isNotBlank() } ?: fallbackDate
             return AttendanceCacheEntity(
                 date = dateKey,

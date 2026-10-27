@@ -86,7 +86,7 @@ class MonthlyStatisticsViewModel @Inject constructor(
                         ?: response.employee?.createdAt?.takeIf { !it.isNullOrBlank() }
                         ?: "")
                         .take(10)
-                    val todayStr = LocalDate.now().toString()
+                    val todayStr = com.skypass.skytrack.util.AttendanceDates.today()
 
                     val filteredAttendance = attendance.filter { item ->
                         val isNotFuture = item.date <= todayStr
@@ -265,7 +265,7 @@ class MonthlyStatisticsViewModel @Inject constructor(
                     if (!outStr.isNullOrBlank()) {
                         // Includes auto-checkout "06:00 PM" — treat it as a valid checkout time
                         minutesFromDays += calculateMinutesFromTimes(inStr, outStr, item.breakMinutes ?: 0)
-                    } else if (item.date == LocalDate.now().toString()) {
+                    } else if (item.date == com.skypass.skytrack.util.AttendanceDates.today()) {
                         minutesFromDays += calculateLiveMinutes(inStr, item.breakMinutes ?: 0)
                     } else {
                         minutesFromDays += calculatePastIncompleteMinutes(inStr, item.breakMinutes ?: 0)

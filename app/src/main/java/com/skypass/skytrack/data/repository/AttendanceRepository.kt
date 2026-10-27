@@ -26,7 +26,7 @@ class AttendanceRepository @Inject constructor(
     private val gson: Gson
 ) {
     suspend fun getToday(token: String): Result<AttendanceDto?> = runCatching {
-        val todayStr = LocalDate.now().toString()
+        val todayStr = com.skypass.skytrack.util.AttendanceDates.today()
 
         try {
             val response = api.attendanceToday(
@@ -102,7 +102,7 @@ class AttendanceRepository @Inject constructor(
         location: LocationPayloadDto?
     ): Result<AttendanceDto?> =
         runCatching {
-            val todayStr = LocalDate.now().toString()
+            val todayStr = com.skypass.skytrack.util.AttendanceDates.today()
             val isOnline = connectivityObserver.isConnected()
 
             if (!isOnline) {

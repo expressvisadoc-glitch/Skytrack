@@ -188,7 +188,7 @@ class HomeViewModel @Inject constructor(
 
             val nowTime = java.time.Instant.now().toString()
             val current = AttendanceDto(
-                date = LocalDate.now().toString(),
+                date = com.skypass.skytrack.util.AttendanceDates.today(),
                 employeeId = session.employeeId,
                 name = session.name,
                 login = nowTime
@@ -228,7 +228,7 @@ class HomeViewModel @Inject constructor(
 
             val nowTime = java.time.Instant.now().toString()
             val current = _state.value.attendance ?: AttendanceDto(
-                date = LocalDate.now().toString(),
+                date = com.skypass.skytrack.util.AttendanceDates.today(),
                 employeeId = session.employeeId,
                 name = session.name
             )

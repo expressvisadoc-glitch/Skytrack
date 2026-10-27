@@ -963,7 +963,7 @@ private fun DailyAttendanceLogSection(
     selectedFilterIndex: Int,
     onFilterSelected: (Int) -> Unit
 ) {
-    val todayStr = remember { java.time.LocalDate.now().toString() }
+    val todayStr = remember { com.skypass.skytrack.util.AttendanceDates.today() }
     val validList = remember(attendanceList, todayStr) {
         attendanceList.filter { it.date <= todayStr }
     }
@@ -1121,10 +1121,14 @@ private fun AttendanceRecordCard(item: MonthlyAttendanceDto) {
             return trimmed
         }
         try {
-            val instant = java.time.Instant.parse(trimmed)
-            val zone = java.time.ZoneId.of("Asia/Kolkata")
+            // Timestamps (with Z or an offset) are shown in the device's local timezone
+            val instant = try {
+                java.time.Instant.parse(trimmed)
+            } catch (_: Exception) {
+                java.time.OffsetDateTime.parse(trimmed).toInstant()
+            }
             return java.time.format.DateTimeFormatter.ofPattern("hh:mm a", java.util.Locale.ENGLISH)
-                .format(instant.atZone(zone))
+                .format(instant.atZone(java.time.ZoneId.systemDefault()))
         } catch (_: Exception) {}
         try {
             val ldt = java.time.LocalDateTime.parse(trimmed.take(19))
@@ -1133,11 +1137,12 @@ private fun AttendanceRecordCard(item: MonthlyAttendanceDto) {
         return trimmed
     }
 
-    val rawLogin = item.login?.takeIf { it.isNotBlank() } ?: item.rawCheckIn?.takeIf { it.isNotBlank() }
-    val todayStr = remember { java.time.LocalDate.now().toString() }
+    // Prefer the raw timestamps so times are shown in the device's local timezone
+    val rawLogin = item.rawCheckIn?.takeIf { it.isNotBlank() } ?: item.login?.takeIf { it.isNotBlank() }
+    val todayStr = remember { com.skypass.skytrack.util.AttendanceDates.today() }
     val isPastDay = item.date < todayStr
-    val rawLogout = item.logout?.takeIf { it.isNotBlank() }
-        ?: item.rawCheckOut?.takeIf { it.isNotBlank() }
+    val rawLogout = item.rawCheckOut?.takeIf { it.isNotBlank() }
+        ?: item.logout?.takeIf { it.isNotBlank() }
         ?: if (isPastDay && !rawLogin.isNullOrBlank()) "06:00 PM" else null
     val hasPunchTimes = !rawLogin.isNullOrBlank()
     val hasOutTime = !rawLogout.isNullOrBlank()

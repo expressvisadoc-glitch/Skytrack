@@ -1467,6 +1467,7 @@ private fun hasLocationPermission(context: Context): Boolean =
     ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
+// Strings without a timezone are legacy server values formatted in India time; ISO timestamps carry their own offset.
 private fun parseInstant(timeStr: String?): java.time.Instant {
     if (timeStr.isNullOrBlank()) return java.time.Instant.now()
     val trimmed = timeStr.trim()
@@ -1508,8 +1509,7 @@ private fun formatDisplayTime(timeStr: String?): String {
     if (timeStr.isNullOrBlank()) return "--:--"
     return try {
         val instant = parseInstant(timeStr)
-        val indiaZone = java.time.ZoneId.of("Asia/Kolkata")
-        instant.atZone(indiaZone).format(DateTimeFormatter.ofPattern("hh:mm a", Locale.ENGLISH))
+        instant.atZone(java.time.ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("hh:mm a", Locale.ENGLISH))
     } catch (_: Exception) {
         timeStr
     }
