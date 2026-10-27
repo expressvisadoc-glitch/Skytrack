@@ -85,7 +85,10 @@ fun TimesheetPdfViewerDialog(
     pdfFile: File,
     monthTitle: String,
     employeeName: String,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    // Also used for payslips; defaults keep the timesheet wording
+    documentLabel: String = "Timesheet",
+    shareSubject: String = "Monthly Timesheet - $monthTitle"
 ) {
     val context = LocalContext.current
     var pages by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
@@ -124,6 +127,7 @@ fun TimesheetPdfViewerDialog(
             ) {
                 // Top Application Bar
                 TopPdfViewerBar(
+                    documentLabel = documentLabel,
                     monthTitle = monthTitle,
                     employeeName = employeeName,
                     onClose = onDismiss,
@@ -131,7 +135,7 @@ fun TimesheetPdfViewerDialog(
                         openPdfInExternalViewer(context, pdfFile)
                     },
                     onShare = {
-                        sharePdfFile(context, pdfFile, "Monthly Timesheet - $monthTitle")
+                        sharePdfFile(context, pdfFile, shareSubject, documentLabel)
                     }
                 )
 
@@ -153,7 +157,7 @@ fun TimesheetPdfViewerDialog(
                                     modifier = Modifier.size(44.dp)
                                 )
                                 Text(
-                                    text = "Rendering Timesheet PDF...",
+                                    text = "Rendering $documentLabel PDF...",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = Slate600
@@ -214,7 +218,7 @@ fun TimesheetPdfViewerDialog(
                         openPdfInExternalViewer(context, pdfFile)
                     },
                     onShare = {
-                        sharePdfFile(context, pdfFile, "Monthly Timesheet - $monthTitle")
+                        sharePdfFile(context, pdfFile, shareSubject, documentLabel)
                     }
                 )
             }
@@ -228,7 +232,8 @@ private fun TopPdfViewerBar(
     employeeName: String,
     onClose: () -> Unit,
     onOpenExternal: () -> Unit,
-    onShare: () -> Unit
+    onShare: () -> Unit,
+    documentLabel: String = "Timesheet"
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -262,7 +267,7 @@ private fun TopPdfViewerBar(
 
                 Column {
                     Text(
-                        text = "Timesheet Document",
+                        text = "$documentLabel Document",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = Slate900,
@@ -510,7 +515,7 @@ fun openPdfInExternalViewer(context: Context, file: File) {
 /**
  * Shares the PDF file via Android Share Sheet using FileProvider.
  */
-fun sharePdfFile(context: Context, file: File, subject: String) {
+fun sharePdfFile(context: Context, file: File, subject: String, documentLabel: String = "Timesheet") {
     try {
         val uri = FileProvider.getUriForFile(
             context,
@@ -522,11 +527,14 @@ fun sharePdfFile(context: Context, file: File, subject: String) {
             type = "application/pdf"
             putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(Intent.EXTRA_SUBJECT, subject)
-            putExtra(Intent.EXTRA_TEXT, "Here is the SkyTrack Monthly Attendance Timesheet PDF.")
+            putExtra(
+                Intent.EXTRA_TEXT,
+                if (documentLabel == "Timesheet") "Here is the SkyTrack Monthly Attendance Timesheet PDF." else "Here is the SkyTrack $documentLabel PDF."
+            )
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
 
-        val chooser = Intent.createChooser(intent, "Share Timesheet PDF")
+        val chooser = Intent.createChooser(intent, "Share $documentLabel PDF")
         chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(chooser)
     } catch (e: Exception) {

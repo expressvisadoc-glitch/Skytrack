@@ -42,6 +42,20 @@ interface SkyTrackApi {
     ): AttendanceResponse
 
     @POST
+    suspend fun payslipList(
+        @Url endpoint: String,
+        @Header("Authorization") authorization: String,
+        @Body request: PayslipRequest
+    ): PayslipListResponse
+
+    @POST
+    suspend fun payslipGet(
+        @Url endpoint: String,
+        @Header("Authorization") authorization: String,
+        @Body request: PayslipRequest
+    ): PayslipResponse
+
+    @POST
     suspend fun salarySummary(
         @Url endpoint: String,
         @Header("Authorization") authorization: String,

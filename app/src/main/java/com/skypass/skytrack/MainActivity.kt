@@ -20,6 +20,7 @@ import com.skypass.skytrack.data.repository.AuthRepository
 import com.skypass.skytrack.ui.home.HomeScreen
 import com.skypass.skytrack.ui.home.HomeViewModel
 import com.skypass.skytrack.ui.home.SalaryViewModel
+import com.skypass.skytrack.ui.monthly.PayslipsViewModel
 import com.skypass.skytrack.ui.leave.LeaveScreen
 import com.skypass.skytrack.ui.leave.LeaveViewModel
 import com.skypass.skytrack.ui.login.LoginScreen
@@ -59,6 +60,7 @@ class MainActivity : ComponentActivity() {
     private val loginViewModel: LoginViewModel by viewModels()
     private val homeViewModel: HomeViewModel by viewModels()
     private val salaryViewModel: SalaryViewModel by viewModels()
+    private val payslipsViewModel: PayslipsViewModel by viewModels()
     private val leaveViewModel: LeaveViewModel by viewModels()
     private val monthlyStatisticsViewModel: MonthlyStatisticsViewModel by viewModels()
     private val profileViewModel: ProfileViewModel by viewModels()
@@ -215,6 +217,7 @@ class MainActivity : ComponentActivity() {
                             showMonthlyStatistics -> {
                                 MonthlyStatisticsScreen(
                                     viewModel = monthlyStatisticsViewModel,
+                                    payslipsViewModel = payslipsViewModel,
                                     session = session!!,
                                     onBack = {
                                         showMonthlyStatistics = false

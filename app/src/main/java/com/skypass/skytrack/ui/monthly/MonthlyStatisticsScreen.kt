@@ -40,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -117,9 +118,17 @@ fun MonthlyStatisticsScreen(
     session: Session? = null,
     onBack: () -> Unit,
     onOpenLeave: () -> Unit = {},
-    onOpenProfile: () -> Unit = {}
+    onOpenProfile: () -> Unit = {},
+    payslipsViewModel: PayslipsViewModel? = null
 ) {
     val state by viewModel.uiState.collectAsState()
+    val payslipsState = payslipsViewModel?.state?.collectAsState()?.value
+    var payslipFile by remember { mutableStateOf<File?>(null) }
+    var payslipTitle by remember { mutableStateOf("") }
+
+    LaunchedEffect(session?.token) {
+        if (session != null) payslipsViewModel?.load(session)
+    }
     var selectedFilterIndex by remember { mutableIntStateOf(0) } // 0: All, 1: Present, 2: Leaves
 
     val context = LocalContext.current
@@ -223,6 +232,30 @@ fun MonthlyStatisticsScreen(
                 }
             )
 
+            // Payslips for locked payroll months
+            if (payslipsViewModel != null && payslipsState != null && session != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                PayslipsSection(
+                    state = payslipsState,
+                    onOpen = { month ->
+                        payslipsViewModel.open(session, month) { payslip ->
+                            coroutineScope.launch {
+                                try {
+                                    val file = withContext(Dispatchers.IO) { PayslipPdfGenerator.generate(context, payslip) }
+                                    payslipTitle = runCatching {
+                                        YearMonth.parse(payslip.month).format(java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy", java.util.Locale.ENGLISH))
+                                    }.getOrDefault(payslip.month)
+                                    payslipFile = file
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Error creating payslip PDF: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    },
+                    onRetry = { payslipsViewModel.load(session) }
+                )
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             // Daily Attendance Log with Filter Tabs
@@ -249,6 +282,21 @@ fun MonthlyStatisticsScreen(
         com.skypass.skytrack.ui.components.SkyTrackLoadingOverlay(
             visible = state.isLoading
         )
+
+        // Payslip PDF preview; the file holds salary data, so it is deleted when the viewer closes
+        payslipFile?.let { file ->
+            TimesheetPdfViewerDialog(
+                pdfFile = file,
+                monthTitle = payslipTitle,
+                employeeName = session?.name ?: "Employee",
+                onDismiss = {
+                    file.delete()
+                    payslipFile = null
+                },
+                documentLabel = "Payslip",
+                shareSubject = "Payslip - $payslipTitle"
+            )
+        }
 
         // Monthly Timesheet PDF In-App Preview Dialog
         if (pdfFileToShow != null) {

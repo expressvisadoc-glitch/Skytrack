@@ -86,6 +86,7 @@ data class SalaryDto(
     @SerializedName("lateLopDaysPerUnit") val lateLopDaysPerUnit: Double? = null,
     @SerializedName("lateLopDays") val lateLopDays: Double? = null,
     @SerializedName("lateAmount") val lateAmount: Double? = null,
+    @SerializedName("totalLopDays") val totalLopDays: Double? = null,
     @SerializedName("totalDeductions") val totalDeductions: Double? = null,
     @SerializedName("netPay") val netPay: Double? = null,
     @SerializedName("flags") val flags: List<String>? = null,
@@ -97,6 +98,51 @@ data class SalaryDayDto(
     @SerializedName("type") val type: String,
     @SerializedName("days") val days: Double? = null,
     @SerializedName("amount") val amount: Double? = null
+)
+
+data class PayslipRequest(
+    @SerializedName("action") val action: String,
+    @SerializedName("month") val month: String? = null
+)
+
+data class PayslipListResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("error") val error: String? = null,
+    @SerializedName("payslips") val payslips: List<PayslipListItemDto>? = null
+)
+
+data class PayslipListItemDto(
+    @SerializedName("payslipNumber") val payslipNumber: String,
+    @SerializedName("month") val month: String,
+    @SerializedName("version") val version: Int,
+    @SerializedName("generatedAt") val generatedAt: String? = null,
+    @SerializedName("netPay") val netPay: Double? = null
+)
+
+data class PayslipResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("error") val error: String? = null,
+    @SerializedName("payslip") val payslip: PayslipDto? = null
+)
+
+/** Frozen payslip for a locked payroll month; never cached on the device. */
+data class PayslipDto(
+    @SerializedName("payslipNumber") val payslipNumber: String,
+    @SerializedName("month") val month: String,
+    @SerializedName("version") val version: Int,
+    @SerializedName("generatedAt") val generatedAt: String? = null,
+    @SerializedName("companyName") val companyName: String? = null,
+    @SerializedName("employee") val employee: PayslipEmployeeDto? = null,
+    @SerializedName("salary") val salary: SalaryDto? = null
+)
+
+data class PayslipEmployeeDto(
+    @SerializedName("employeeId") val employeeId: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("designation") val designation: String? = null,
+    @SerializedName("department") val department: String? = null
 )
 
 data class GeofenceConfigResponse(
