@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.first
 import com.skypass.skytrack.data.repository.AuthRepository
 import com.skypass.skytrack.ui.home.HomeScreen
 import com.skypass.skytrack.ui.home.HomeViewModel
+import com.skypass.skytrack.ui.home.SalaryViewModel
 import com.skypass.skytrack.ui.leave.LeaveScreen
 import com.skypass.skytrack.ui.leave.LeaveViewModel
 import com.skypass.skytrack.ui.login.LoginScreen
@@ -57,6 +58,7 @@ class MainActivity : ComponentActivity() {
 
     private val loginViewModel: LoginViewModel by viewModels()
     private val homeViewModel: HomeViewModel by viewModels()
+    private val salaryViewModel: SalaryViewModel by viewModels()
     private val leaveViewModel: LeaveViewModel by viewModels()
     private val monthlyStatisticsViewModel: MonthlyStatisticsViewModel by viewModels()
     private val profileViewModel: ProfileViewModel by viewModels()
@@ -255,6 +257,7 @@ class MainActivity : ComponentActivity() {
                                 HomeScreen(
                                     session = session!!,
                                     viewModel = homeViewModel,
+                                    salaryViewModel = salaryViewModel,
                                     onLogout = {
                                         loginViewModel.resetState()
                                         lifecycleScope.launch {

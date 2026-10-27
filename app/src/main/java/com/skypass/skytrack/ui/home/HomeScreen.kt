@@ -116,12 +116,14 @@ val Emerald100 = Color(0xFFD1FAE5)
 fun HomeScreen(
     session: Session,
     viewModel: HomeViewModel,
+    salaryViewModel: SalaryViewModel,
     onLogout: () -> Unit,
     onOpenLeave: () -> Unit,
     onOpenMonthlyStatistics: () -> Unit,
     onOpenProfile: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
+    val salaryState by salaryViewModel.state.collectAsState()
     var showComingSoonDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -160,6 +162,10 @@ fun HomeScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                // Salary figures are dropped when the app leaves the foreground
+                salaryViewModel.hide()
+            }
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refreshTimers()
                 viewModel.loadToday(session)
@@ -176,6 +182,13 @@ fun HomeScreen(
 
     LaunchedEffect(session.token) {
         viewModel.loadToday(session)
+    }
+
+    // Recalculate a revealed salary card whenever attendance settles after a change
+    LaunchedEffect(state.attendance?.login, state.attendance?.logout, state.attendance?.breakStartedAt, state.isActionLoading) {
+        if (!state.isActionLoading) {
+            salaryViewModel.refreshIfRevealed(session)
+        }
     }
 
     if (state.error != null) {
@@ -330,6 +343,14 @@ fun HomeScreen(
                     onEndShift = { runWithLocationPermission(false) { viewModel.endWork(session) } }
                 )
             }
+
+            // This month's salary (hidden until the eye icon is tapped)
+            Spacer(modifier = Modifier.height(16.dp))
+            SalaryCard(
+                state = salaryState,
+                onToggle = { salaryViewModel.toggle(session) },
+                onRetry = { salaryViewModel.retry(session) }
+            )
         }
 
         // Docked Bottom Navigation Bar

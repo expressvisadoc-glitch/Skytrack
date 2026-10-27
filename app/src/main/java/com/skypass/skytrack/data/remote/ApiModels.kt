@@ -56,6 +56,49 @@ data class LocationPayloadDto(
     @SerializedName("platform") val platform: String = "android"
 )
 
+data class SalarySummaryRequest(
+    @SerializedName("action") val action: String = "salary_summary",
+    @SerializedName("month") val month: String? = null
+)
+
+data class SalarySummaryResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("error") val error: String? = null,
+    @SerializedName("salary") val salary: SalaryDto? = null
+)
+
+/** Provisional salary from the backend's compute_payroll(); never cached on the device. */
+data class SalaryDto(
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("month") val month: String? = null,
+    @SerializedName("monthlyGross") val monthlyGross: Double? = null,
+    @SerializedName("workingDaysInMonth") val workingDaysInMonth: Double? = null,
+    @SerializedName("paidWorkingDays") val paidWorkingDays: Double? = null,
+    @SerializedName("perDayRate") val perDayRate: Double? = null,
+    @SerializedName("earnedGross") val earnedGross: Double? = null,
+    @SerializedName("absenceDays") val absenceDays: Double? = null,
+    @SerializedName("absenceAmount") val absenceAmount: Double? = null,
+    @SerializedName("lopLeaveDays") val lopLeaveDays: Double? = null,
+    @SerializedName("lopLeaveAmount") val lopLeaveAmount: Double? = null,
+    @SerializedName("lateMarks") val lateMarks: Int? = null,
+    @SerializedName("lateMarksPerUnit") val lateMarksPerUnit: Int? = null,
+    @SerializedName("lateLopDaysPerUnit") val lateLopDaysPerUnit: Double? = null,
+    @SerializedName("lateLopDays") val lateLopDays: Double? = null,
+    @SerializedName("lateAmount") val lateAmount: Double? = null,
+    @SerializedName("totalDeductions") val totalDeductions: Double? = null,
+    @SerializedName("netPay") val netPay: Double? = null,
+    @SerializedName("flags") val flags: List<String>? = null,
+    @SerializedName("days") val days: List<SalaryDayDto>? = null
+)
+
+data class SalaryDayDto(
+    @SerializedName("date") val date: String,
+    @SerializedName("type") val type: String,
+    @SerializedName("days") val days: Double? = null,
+    @SerializedName("amount") val amount: Double? = null
+)
+
 data class GeofenceConfigResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("message") val message: String? = null,

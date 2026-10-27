@@ -42,6 +42,13 @@ interface SkyTrackApi {
     ): AttendanceResponse
 
     @POST
+    suspend fun salarySummary(
+        @Url endpoint: String,
+        @Header("Authorization") authorization: String,
+        @Body request: SalarySummaryRequest
+    ): SalarySummaryResponse
+
+    @POST
     suspend fun geofenceConfig(
         @Url endpoint: String,
         @Header("Authorization") authorization: String,

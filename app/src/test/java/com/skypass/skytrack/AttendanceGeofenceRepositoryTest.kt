@@ -67,6 +67,7 @@ class AttendanceGeofenceRepositoryTest {
         override suspend fun resumeWork(endpoint: String, authorization: String, request: AttendanceRequest) = record(request)
         override suspend fun attendanceToday(endpoint: String, authorization: String, request: AttendanceRequest) = record(request)
         override suspend fun geofenceConfig(endpoint: String, authorization: String, request: AttendanceRequest) = geofenceResponse()
+        override suspend fun salarySummary(endpoint: String, authorization: String, request: SalarySummaryRequest): SalarySummaryResponse = TODO()
 
         override suspend fun login(endpoint: String, request: LoginRequest): LoginResponse = TODO()
         override suspend fun submitLeave(endpoint: String, authorization: String, request: LeaveSubmitRequest): LeaveResponse = TODO()
