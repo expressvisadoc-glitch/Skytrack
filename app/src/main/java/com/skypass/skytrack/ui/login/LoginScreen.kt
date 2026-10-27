@@ -179,7 +179,7 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = "Access your operational shift & flight logs",
+                        text = "Sign in to record your attendance, breaks and leave",
                         color = Slate500,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Normal,
@@ -373,7 +373,7 @@ fun LoginScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "VERSION 1.0.0",
+                    text = "VERSION ${com.skypass.skytrack.BuildConfig.VERSION_NAME}",
                     color = Slate400,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
