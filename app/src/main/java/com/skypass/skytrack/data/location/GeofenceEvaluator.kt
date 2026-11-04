@@ -39,6 +39,21 @@ data class GeofenceFeedback(
     }
 }
 
+/** What the Home map shows: the office zone and, when known, the employee's own location. */
+data class GeofenceMapData(
+    val officeLatitude: Double,
+    val officeLongitude: Double,
+    val radiusMeters: Int,
+    val userLatitude: Double? = null,
+    val userLongitude: Double? = null,
+    val userAccuracyMeters: Float? = null
+) {
+    val hasUser: Boolean get() = userLatitude != null && userLongitude != null
+
+    val isInside: Boolean
+        get() = hasUser && GeofenceEvaluator.distanceMeters(officeLatitude, officeLongitude, userLatitude!!, userLongitude!!) <= radiusMeters
+}
+
 object GeofenceEvaluator {
 
     // Defaults mirror the server's office_geofence_settings defaults.
@@ -52,6 +67,20 @@ object GeofenceEvaluator {
         val a = sin(dLat / 2).pow(2) +
             cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2).pow(2)
         return 2 * EARTH_RADIUS_METERS * asin(min(1.0, sqrt(a)))
+    }
+
+    /** Map data for an active office; the employee's position is left out for mock locations. */
+    fun mapData(config: GeofenceConfigDto?, fix: LocationFix?): GeofenceMapData? {
+        if (config == null || unavailableFeedback(config) != null) return null
+        val usableFix = fix?.takeIf { !it.isMock }
+        return GeofenceMapData(
+            officeLatitude = config.latitude!!,
+            officeLongitude = config.longitude!!,
+            radiusMeters = config.radiusMeters!!,
+            userLatitude = usableFix?.latitude,
+            userLongitude = usableFix?.longitude,
+            userAccuracyMeters = usableFix?.accuracyMeters
+        )
     }
 
     /** NOT_CONFIGURED / INACTIVE when the settings block every check-in, otherwise null. */

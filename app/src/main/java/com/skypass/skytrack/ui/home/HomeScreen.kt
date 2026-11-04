@@ -31,7 +31,6 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LocalCafe
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Person
-import com.skypass.skytrack.ui.components.ComingSoonDialog
 import com.skypass.skytrack.ui.components.SkyTrackDialog
 import com.skypass.skytrack.ui.components.SkyTrackDialogType
 import androidx.compose.animation.animateColorAsState
@@ -120,11 +119,12 @@ fun HomeScreen(
     onLogout: () -> Unit,
     onOpenLeave: () -> Unit,
     onOpenMonthlyStatistics: () -> Unit,
-    onOpenProfile: () -> Unit = {}
+    onOpenProfile: () -> Unit = {},
+    unreadNotifications: Int = 0,
+    onOpenNotifications: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
     val salaryState by salaryViewModel.state.collectAsState()
-    var showComingSoonDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     // Location permission is requested only when the employee checks in or out (foreground only)
@@ -251,7 +251,8 @@ fun HomeScreen(
         ) {
             // Top Header: Calendar Title & Horizontal Date Strip
             DashboardHeader(
-                onNotificationClick = { showComingSoonDialog = true }
+                unreadNotifications = unreadNotifications,
+                onNotificationClick = onOpenNotifications
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -269,6 +270,7 @@ fun HomeScreen(
             if (!hasEnded && geofence != null) {
                 GeofenceStatusCard(
                     feedback = geofence,
+                    map = state.geofenceMap,
                     onRetry = { viewModel.refreshGeofence(session) },
                     onRequestPermission = { requestLocationPermission() },
                     onOpenAppSettings = {
@@ -369,14 +371,6 @@ fun HomeScreen(
         com.skypass.skytrack.ui.components.SkyTrackLoadingOverlay(
             visible = state.isLoading || state.isActionLoading || state.isStartingWork || state.isEndingWork
         )
-
-        if (showComingSoonDialog) {
-            ComingSoonDialog(
-                title = "Notifications",
-                message = "This feature is coming soon.",
-                onDismiss = { showComingSoonDialog = false }
-            )
-        }
     }
 }
 
@@ -389,6 +383,7 @@ data class StitchCalendarDay(
 @Composable
 fun DashboardHeader(
     modifier: Modifier = Modifier,
+    unreadNotifications: Int = 0,
     onNotificationClick: () -> Unit = {}
 ) {
     val today = remember { LocalDate.now() }
@@ -470,10 +465,28 @@ fun DashboardHeader(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Notifications,
-                    contentDescription = "Notifications",
+                    contentDescription = if (unreadNotifications > 0) "Notifications, $unreadNotifications unread" else "Notifications",
                     tint = Slate700,
                     modifier = Modifier.size(20.dp)
                 )
+                if (unreadNotifications > 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 5.dp, end = 5.dp)
+                            .size(16.dp)
+                            .background(BrandColor, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (unreadNotifications > 9) "9+" else unreadNotifications.toString(),
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            lineHeight = 9.sp
+                        )
+                    }
+                }
             }
         }
 

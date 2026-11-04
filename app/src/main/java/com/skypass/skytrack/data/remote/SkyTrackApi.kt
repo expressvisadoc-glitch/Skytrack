@@ -56,6 +56,27 @@ interface SkyTrackApi {
     ): PayslipResponse
 
     @POST
+    suspend fun notificationsList(
+        @Url endpoint: String,
+        @Header("Authorization") authorization: String,
+        @Body request: NotificationsRequest
+    ): NotificationsListResponse
+
+    @POST
+    suspend fun notificationsMarkRead(
+        @Url endpoint: String,
+        @Header("Authorization") authorization: String,
+        @Body request: NotificationsRequest
+    ): BasicResponse
+
+    @POST
+    suspend fun deviceToken(
+        @Url endpoint: String,
+        @Header("Authorization") authorization: String,
+        @Body request: DeviceTokenRequest
+    ): BasicResponse
+
+    @POST
     suspend fun salarySummary(
         @Url endpoint: String,
         @Header("Authorization") authorization: String,

@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.skypass.skytrack.data.location.GeofenceFeedback
+import com.skypass.skytrack.data.location.GeofenceMapData
 import com.skypass.skytrack.data.location.GeofenceFeedback.Kind
 
 private data class GeofenceCardContent(
@@ -127,9 +128,11 @@ fun GeofenceStatusCard(
     onRequestPermission: () -> Unit,
     onOpenAppSettings: () -> Unit,
     onOpenLocationSettings: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    map: GeofenceMapData? = null
 ) {
     val content = feedback.toContent()
+    val showMap = map != null && feedback.kind in setOf(Kind.INSIDE, Kind.OUTSIDE, Kind.POOR_ACCURACY)
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -137,10 +140,8 @@ fun GeofenceStatusCard(
         color = CardSurface,
         border = BorderStroke(1.dp, Slate200)
     ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.Top
-        ) {
+      Column(modifier = Modifier.padding(14.dp)) {
+        Row(verticalAlignment = Alignment.Top) {
             Box(
                 modifier = Modifier
                     .size(36.dp)
@@ -208,5 +209,26 @@ fun GeofenceStatusCard(
                 }
             }
         }
+        if (showMap) {
+            Spacer(modifier = Modifier.height(12.dp))
+            GeofenceMap(data = map!!)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                MapLegend(color = BrandColor, text = "Office · ${map.radiusMeters} m zone")
+                if (map.hasUser) {
+                    MapLegend(color = if (map.isInside) Emerald600 else Color(0xFF2563EB), text = "You")
+                }
+            }
+        }
+      }
+    }
+}
+
+@Composable
+private fun MapLegend(color: Color, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.size(8.dp).background(color, CircleShape))
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(text = text, color = Slate600, fontSize = 11.sp, fontWeight = FontWeight.Medium)
     }
 }

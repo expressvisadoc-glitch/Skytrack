@@ -368,3 +368,47 @@ data class ProfileResponse(
 )
 
 
+
+// Notifications (docs/NOTIFICATIONS.md in skytrack-admin)
+data class NotificationsRequest(
+    @SerializedName("action") val action: String,
+    @SerializedName("limit") val limit: Int? = null,
+    @SerializedName("before") val before: String? = null,
+    @SerializedName("all") val all: Boolean? = null
+)
+
+data class NotificationsListResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("error") val error: String? = null,
+    @SerializedName("notifications") val notifications: List<NotificationDto>? = null,
+    @SerializedName("unreadCount") val unreadCount: Int? = null,
+    @SerializedName("hasMore") val hasMore: Boolean? = null
+)
+
+data class NotificationDto(
+    @SerializedName("id") val id: String,
+    @SerializedName("type") val type: String? = null,
+    @SerializedName("title") val title: String? = null,
+    @SerializedName("body") val body: String? = null,
+    @SerializedName("data") val data: NotificationDataDto? = null,
+    @SerializedName("createdAt") val createdAt: String? = null,
+    @SerializedName("readAt") val readAt: String? = null
+)
+
+data class NotificationDataDto(
+    @SerializedName("screen") val screen: String? = null
+)
+
+data class DeviceTokenRequest(
+    @SerializedName("action") val action: String,
+    @SerializedName("token") val token: String,
+    @SerializedName("platform") val platform: String = "android",
+    @SerializedName("appVersion") val appVersion: String? = null
+)
+
+data class BasicResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("error") val error: String? = null
+)

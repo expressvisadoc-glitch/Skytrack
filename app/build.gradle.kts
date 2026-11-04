@@ -1,3 +1,7 @@
+// Firebase Cloud Messaging settings (docs/NOTIFICATIONS.md in skytrack-admin). Set them in
+// ~/.gradle/gradle.properties; when they are missing the app builds and runs without push notifications.
+fun firebaseProperty(name: String): String = providers.gradleProperty(name).getOrElse("")
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -23,6 +27,10 @@ android {
             name = "SKYTRACK_API_URL",
             value = "\"https://cwtrrtbodqctntkpnjlv.supabase.co/functions/v1/skytrack-api\""
         )
+        buildConfigField("String", "FIREBASE_API_KEY", "\"${firebaseProperty("firebaseApiKey")}\"")
+        buildConfigField("String", "FIREBASE_APP_ID", "\"${firebaseProperty("firebaseAppId")}\"")
+        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"${firebaseProperty("firebaseProjectId")}\"")
+        buildConfigField("String", "FIREBASE_SENDER_ID", "\"${firebaseProperty("firebaseSenderId")}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -37,6 +45,18 @@ android {
             )
             signingConfig = signingConfigs.getByName("debug")
         }
+        // Debug builds (Android Studio Run / Build APK) are staging builds too, so a development build can never
+        // replace the live app or use production data. Only release builds talk to production.
+        debug {
+            applicationIdSuffix = ".staging"
+            versionNameSuffix = "-staging"
+            buildConfigField(
+                type = "String",
+                name = "SKYTRACK_API_URL",
+                value = "\"${providers.gradleProperty("skytrackStagingApiUrl").getOrElse("")}\""
+            )
+            buildConfigField("String", "FIREBASE_APP_ID", "\"${firebaseProperty("firebaseStagingAppId")}\"")
+        }
         // Test build against a staging Supabase project. Installs alongside the production app
         // (separate application id). Set skytrackStagingApiUrl in ~/.gradle/gradle.properties.
         create("staging") {
@@ -49,6 +69,8 @@ android {
                 name = "SKYTRACK_API_URL",
                 value = "\"${providers.gradleProperty("skytrackStagingApiUrl").getOrElse("")}\""
             )
+            // The staging app (.staging package) is registered as its own app in the Firebase project
+            buildConfigField("String", "FIREBASE_APP_ID", "\"${firebaseProperty("firebaseStagingAppId")}\"")
         }
     }
 
@@ -107,6 +129,11 @@ dependencies {
 
     // Foreground location for office geofence checks
     implementation(libs.play.services.location)
+    implementation(libs.osmdroid.android)
+
+    // Push notifications
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

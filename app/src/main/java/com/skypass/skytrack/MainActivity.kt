@@ -1,6 +1,12 @@
 package com.skypass.skytrack
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -12,11 +18,18 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.first
+import com.skypass.skytrack.data.local.Session
+import com.skypass.skytrack.data.notifications.NotificationPreferences
+import com.skypass.skytrack.data.notifications.PushManager
+import com.skypass.skytrack.data.notifications.PushNotifier
 import com.skypass.skytrack.data.repository.AuthRepository
+import com.skypass.skytrack.ui.notifications.NotificationsScreen
+import com.skypass.skytrack.ui.notifications.NotificationsViewModel
 import com.skypass.skytrack.ui.home.HomeScreen
 import com.skypass.skytrack.ui.home.HomeViewModel
 import com.skypass.skytrack.ui.home.SalaryViewModel
@@ -57,6 +70,15 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var appUpdateManager: com.skypass.skytrack.data.update.AppUpdateManager
 
+    @Inject
+    lateinit var pushManager: PushManager
+
+    @Inject
+    lateinit var notificationPreferences: NotificationPreferences
+
+    // Screen named by a tapped push notification, handled once the session is loaded
+    private var pendingOpenScreen by mutableStateOf<String?>(null)
+
     private val loginViewModel: LoginViewModel by viewModels()
     private val homeViewModel: HomeViewModel by viewModels()
     private val salaryViewModel: SalaryViewModel by viewModels()
@@ -64,10 +86,37 @@ class MainActivity : ComponentActivity() {
     private val leaveViewModel: LeaveViewModel by viewModels()
     private val monthlyStatisticsViewModel: MonthlyStatisticsViewModel by viewModels()
     private val profileViewModel: ProfileViewModel by viewModels()
+    private val notificationsViewModel: NotificationsViewModel by viewModels()
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingOpenScreen = intent.getStringExtra(PushNotifier.EXTRA_OPEN_SCREEN)
+    }
+
+    // Android may recreate the activity while a tapped notification is still being opened (e.g. right after a
+    // cold start), so the request survives recreation until it has been handled
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(STATE_OPEN_SCREEN, pendingOpenScreen)
+    }
+
+    private fun signOut(session: Session?) {
+        loginViewModel.resetState()
+        lifecycleScope.launch {
+            session?.let { pushManager.unregisterCurrentDevice(it.token) }
+            authRepository.logout()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        pendingOpenScreen = if (savedInstanceState == null) {
+            intent?.getStringExtra(PushNotifier.EXTRA_OPEN_SCREEN)
+        } else {
+            savedInstanceState.getString(STATE_OPEN_SCREEN)
+        }
 
         setContent {
             SkyTrackTheme {
@@ -85,21 +134,39 @@ class MainActivity : ComponentActivity() {
                     val loginState by loginViewModel.state.collectAsState()
                     val rememberedAccount by loginViewModel.rememberedAccount.collectAsState()
 
-                    var showLeave by remember {
+                    var showLeave by rememberSaveable {
                         mutableStateOf(false)
                     }
 
-                    var showMonthlyStatistics by remember {
+                    var showMonthlyStatistics by rememberSaveable {
                         mutableStateOf(false)
                     }
 
-                    var showProfile by remember {
+                    var showProfile by rememberSaveable {
                         mutableStateOf(false)
                     }
 
-                    var showChangePassword by remember {
+                    var showChangePassword by rememberSaveable {
                         mutableStateOf(false)
                     }
+
+                    var showNotifications by rememberSaveable {
+                        mutableStateOf(false)
+                    }
+
+                    val unreadNotifications by notificationsViewModel.unreadCount.collectAsState()
+
+                    val openScreen: (String) -> Unit = { screen ->
+                        showNotifications = false
+                        showChangePassword = false
+                        showProfile = screen == "profile"
+                        showLeave = screen == "leave"
+                        showMonthlyStatistics = screen == "monthly"
+                    }
+
+                    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestPermission()
+                    ) { }
 
                     var splashAnimationFinished by remember {
                         mutableStateOf(false)
@@ -121,6 +188,28 @@ class MainActivity : ComponentActivity() {
                         if (session == null) {
                             loginViewModel.resetState()
                         }
+                    }
+
+                    // Push registration and the bell count for the signed-in employee
+                    LaunchedEffect(session?.token) {
+                        val token = session?.token ?: return@LaunchedEffect
+                        notificationsViewModel.refreshUnreadCount(token)
+                        pushManager.registerCurrentDevice(token)
+                        // Android 13+: ask once; afterwards the Profile switch handles it
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
+                            notificationPreferences.isEnabled() &&
+                            notificationPreferences.claimPermissionPrompt()
+                        ) {
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }
+
+                    LaunchedEffect(pendingOpenScreen, session?.token, isSessionLoaded) {
+                        val screen = pendingOpenScreen ?: return@LaunchedEffect
+                        if (!isSessionLoaded || session == null) return@LaunchedEffect
+                        openScreen(screen)
+                        pendingOpenScreen = null
                     }
 
                     // Check for updates asynchronously once the splash finishes
@@ -146,6 +235,7 @@ class MainActivity : ComponentActivity() {
                                 showMonthlyStatistics = false
                                 showProfile = false
                                 showChangePassword = false
+                                showNotifications = false
 
                                 LoginScreen(
                                     state = loginState,
@@ -153,6 +243,17 @@ class MainActivity : ComponentActivity() {
                                     onSuccess = {},
                                     onClearError = loginViewModel::clearError,
                                     rememberedAccount = rememberedAccount
+                                )
+                            }
+
+                            showNotifications -> {
+                                NotificationsScreen(
+                                    session = session!!,
+                                    viewModel = notificationsViewModel,
+                                    onBack = {
+                                        showNotifications = false
+                                    },
+                                    onOpenScreen = openScreen
                                 )
                             }
 
@@ -188,10 +289,7 @@ class MainActivity : ComponentActivity() {
                                     session = session!!,
                                     viewModel = profileViewModel,
                                     onLogout = {
-                                        loginViewModel.resetState()
-                                        lifecycleScope.launch {
-                                            authRepository.logout()
-                                        }
+                                        signOut(session)
                                     },
                                     onNavigateHome = {
                                         showProfile = false
@@ -262,10 +360,7 @@ class MainActivity : ComponentActivity() {
                                     viewModel = homeViewModel,
                                     salaryViewModel = salaryViewModel,
                                     onLogout = {
-                                        loginViewModel.resetState()
-                                        lifecycleScope.launch {
-                                            authRepository.logout()
-                                        }
+                                        signOut(session)
                                     },
                                     onOpenLeave = {
                                         showLeave = true
@@ -275,6 +370,10 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onOpenProfile = {
                                         showProfile = true
+                                    },
+                                    unreadNotifications = unreadNotifications,
+                                    onOpenNotifications = {
+                                        showNotifications = true
                                     }
                                 )
                             }
@@ -320,5 +419,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private companion object {
+        const val STATE_OPEN_SCREEN = "open_screen"
     }
 }

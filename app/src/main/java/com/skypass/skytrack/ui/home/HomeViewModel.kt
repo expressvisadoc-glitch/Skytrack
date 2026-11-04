@@ -6,6 +6,7 @@ import com.skypass.skytrack.data.local.Session
 import com.skypass.skytrack.data.location.DeviceLocationProvider
 import com.skypass.skytrack.data.location.GeofenceEvaluator
 import com.skypass.skytrack.data.location.GeofenceFeedback
+import com.skypass.skytrack.data.location.GeofenceMapData
 import com.skypass.skytrack.data.location.LocationFix
 import com.skypass.skytrack.data.location.LocationResult
 import com.skypass.skytrack.data.remote.AttendanceDto
@@ -40,7 +41,9 @@ data class HomeUiState(
     val error: String? = null,
     val signedOut: Boolean = false,
     // Advisory in-app geofence feedback; the server makes the final check-in / check-out decision.
-    val geofence: GeofenceFeedback? = null
+    val geofence: GeofenceFeedback? = null,
+    // Office zone and the employee's position for the map on the geofence card
+    val geofenceMap: GeofenceMapData? = null
 )
 
 @HiltViewModel
@@ -87,7 +90,10 @@ class HomeViewModel @Inject constructor(
                 )
                 else -> GeofenceEvaluator.evaluate(config, location.fix)
             }
-            _state.value = _state.value.copy(geofence = feedback)
+            _state.value = _state.value.copy(
+                geofence = feedback,
+                geofenceMap = GeofenceEvaluator.mapData(config, (location as? LocationResult.Success)?.fix)
+            )
         }
     }
 

@@ -1,7 +1,15 @@
 package com.skypass.skytrack.ui.profile
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.skypass.skytrack.data.notifications.PushNotifier
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -26,7 +34,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import com.skypass.skytrack.ui.components.ComingSoonDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -147,8 +154,49 @@ fun ProfileScreen(
         viewModel.loadProfileData(session)
     }
 
-    var punchInAlertsEnabled by remember { mutableStateOf(false) }
-    var showComingSoonDialog by remember { mutableStateOf(false) }
+    // Notifications show only when this switch is on and Android allows SkyTrack to post them
+    val notificationsPreferred by viewModel.notificationsEnabled.collectAsState()
+    var systemAllowsNotifications by remember { mutableStateOf(PushNotifier.canShow(context)) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                systemAllowsNotifications = PushNotifier.canShow(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val openNotificationSettings = {
+        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(intent) }
+        Toast.makeText(context, "Allow notifications for SkyTrack to receive alerts.", Toast.LENGTH_LONG).show()
+    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        systemAllowsNotifications = PushNotifier.canShow(context)
+        if (!granted) openNotificationSettings()
+    }
+    val punchInAlertsEnabled = notificationsPreferred && systemAllowsNotifications
+    val onTogglePunchInAlerts = {
+        if (punchInAlertsEnabled) {
+            viewModel.setNotificationsEnabled(false)
+        } else {
+            viewModel.setNotificationsEnabled(true)
+            if (!systemAllowsNotifications) {
+                val canAsk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                if (canAsk) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    openNotificationSettings()
+                }
+            }
+        }
+    }
     var showPhotoSourceSheet by remember { mutableStateOf(false) }
 
     // Active photo URL from live UI state or session fallback
@@ -299,17 +347,9 @@ fun ProfileScreen(
             // Preferences & Settings List Card
             PreferencesCard(
                 punchInAlertsEnabled = punchInAlertsEnabled,
-                onTogglePunchInAlerts = { showComingSoonDialog = true },
+                onTogglePunchInAlerts = onTogglePunchInAlerts,
                 onChangePasswordClick = onChangePasswordClick
             )
-
-            if (showComingSoonDialog) {
-                ComingSoonDialog(
-                    title = "Punch-in Alerts",
-                    message = "This feature is coming soon.",
-                    onDismiss = { showComingSoonDialog = false }
-                )
-            }
 
             Spacer(modifier = Modifier.height(14.dp))
 
