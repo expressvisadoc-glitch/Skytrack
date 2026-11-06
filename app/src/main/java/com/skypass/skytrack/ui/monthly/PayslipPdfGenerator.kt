@@ -1,5 +1,6 @@
 package com.skypass.skytrack.ui.monthly
 
+import com.skypass.skytrack.R
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Paint
@@ -57,11 +58,10 @@ object PayslipPdfGenerator {
         val page = document.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 1).create())
         val canvas = page.canvas
 
-        val letterheadResId = context.resources.getIdentifier("letterhead", "drawable", context.packageName)
-        if (letterheadResId != 0) {
-            android.graphics.BitmapFactory.decodeResource(context.resources, letterheadResId)?.let { bitmap ->
-                canvas.drawBitmap(bitmap, null, RectF(0f, 0f, PAGE_WIDTH.toFloat(), PAGE_HEIGHT.toFloat()), null)
-            }
+        // Referenced directly (not by name) so release builds keep the image when unused resources are removed
+        val letterhead = android.graphics.BitmapFactory.decodeResource(context.resources, R.drawable.letterhead)
+        letterhead?.let { bitmap ->
+            canvas.drawBitmap(bitmap, null, RectF(0f, 0f, PAGE_WIDTH.toFloat(), PAGE_HEIGHT.toFloat()), null)
         }
 
         fun paint(size: Float, bold: Boolean = false, color: Int = dark, align: Paint.Align = Paint.Align.LEFT) = Paint().apply {
@@ -84,7 +84,7 @@ object PayslipPdfGenerator {
         val paidDays = maxOf(0.0, (salary.paidWorkingDays ?: 0.0) - (salary.totalLopDays ?: 0.0))
 
         // Top of content clears the letterhead's header band
-        var y = if (letterheadResId != 0) 200f else 60f
+        var y = if (letterhead != null) 200f else 60f
 
         canvas.drawText(payslip.companyName ?: "Skypass Visa Services", MARGIN_X, y, paint(13f, bold = true))
         canvas.drawText("PAYSLIP", RIGHT, y, paint(16f, bold = true, color = red, align = Paint.Align.RIGHT))

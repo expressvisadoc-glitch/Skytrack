@@ -46,6 +46,7 @@ class NotificationRepositoryTest {
         override suspend fun publicHolidays(endpoint: String, authorization: String, request: AttendanceRequest): HolidayResponse = TODO()
         override suspend fun updateProfilePhoto(endpoint: String, authorization: String, request: UpdateProfilePhotoRequest): UpdateProfilePhotoResponse = TODO()
         override suspend fun getProfile(endpoint: String, authorization: String, request: AttendanceRequest): ProfileResponse = TODO()
+        override suspend fun changeOwnPassword(endpoint: String, authorization: String, request: com.skypass.skytrack.data.remote.ChangeOwnPasswordRequest): BasicResponse = TODO()
     }
 
     // Shape returned by the notifications_list action of skytrack-api

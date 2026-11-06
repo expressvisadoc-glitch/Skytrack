@@ -17,6 +17,7 @@ room = "2.6.1"
 playServicesLocation = "21.3.0"
 firebaseBom = "33.7.0"
 osmdroid = "6.1.20"
+biometric = "1.1.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -55,6 +56,9 @@ play-services-location = { group = "com.google.android.gms", name = "play-servic
 
 # OpenStreetMap preview of the office geofence on Home (no API key)
 osmdroid-android = { group = "org.osmdroid", name = "osmdroid-android", version.ref = "osmdroid" }
+
+# Biometric sign-in (fingerprint unlocks the Keystore key that protects the saved password)
+androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 
 # Push notifications (Firebase Cloud Messaging; configured from gradle properties, no google-services.json)
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }

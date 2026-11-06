@@ -29,6 +29,8 @@ class AppUpdateManager @Inject constructor(
     private var hasDismissedThisSession = false
     private var hasCheckedThisSession = false
 
+    val isStagingBuild: Boolean = BuildConfig.APPLICATION_ID.endsWith(".staging")
+
     /**
      * Checks for updates asynchronously.
      * @param currentVersion Installed version name (defaults to BuildConfig.VERSION_NAME)
@@ -38,6 +40,10 @@ class AppUpdateManager @Inject constructor(
         currentVersion: String = BuildConfig.VERSION_NAME,
         isManualCheck: Boolean = false
     ): AppUpdateInfo? {
+        // Staging (test) builds never look at GitHub releases: those hold the live app, and installing it would
+        // move testers onto production. New test builds are shared with testers directly.
+        if (isStagingBuild) return null
+
         // If not a manual check and user already dismissed the dialog this session, skip
         if (!isManualCheck && hasDismissedThisSession) {
             return null

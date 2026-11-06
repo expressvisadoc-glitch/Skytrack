@@ -3,6 +3,11 @@ package com.skypass.skytrack.ui.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.graphics.Bitmap
+import androidx.fragment.app.FragmentActivity
+import com.skypass.skytrack.data.auth.BiometricAccount
+import com.skypass.skytrack.data.auth.BiometricAuth
+import com.skypass.skytrack.data.auth.BiometricLoginStore
+import com.skypass.skytrack.data.repository.SignInRejectedException
 import com.skypass.skytrack.data.local.Session
 import com.skypass.skytrack.data.local.SessionDataStore
 import com.skypass.skytrack.data.notifications.NotificationPreferences
@@ -43,6 +48,7 @@ class ProfileViewModel @Inject constructor(
     private val sessionDataStore: SessionDataStore,
     private val authRepository: AuthRepository,
     private val notificationPreferences: NotificationPreferences,
+    private val biometricLoginStore: BiometricLoginStore,
     val appUpdateManager: com.skypass.skytrack.data.update.AppUpdateManager
 ) : ViewModel() {
 
@@ -53,11 +59,65 @@ class ProfileViewModel @Inject constructor(
     val notificationsEnabled: StateFlow<Boolean> = notificationPreferences.enabled
         .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
+    /** The account fingerprint sign-in is set up for on this phone, if any */
+    val biometricAccount: StateFlow<BiometricAccount?> = biometricLoginStore.account
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    sealed interface BiometricSetupResult {
+        data object Enabled : BiometricSetupResult
+        data object Cancelled : BiometricSetupResult
+        data class Error(val message: String) : BiometricSetupResult
+    }
+
+    /**
+     * Turns on fingerprint sign-in: checks the password with the server, asks for the fingerprint, then saves the
+     * password encrypted with the fingerprint-locked key. Runs in the screen's scope so the prompt closes with it.
+     */
+    suspend fun enableBiometricLogin(
+        activity: FragmentActivity,
+        employeeId: String,
+        password: String
+    ): BiometricSetupResult {
+        authRepository.verifyPassword(employeeId, password).onFailure { error ->
+            return BiometricSetupResult.Error(
+                if (error is SignInRejectedException) "Incorrect password. Please try again."
+                else com.skypass.skytrack.data.remote.ApiErrorExtractor.getMessage(
+                    error, "Could not check your password. Please check your connection and try again."
+                )
+            )
+        }
+        val cipher = runCatching { biometricLoginStore.encryptCipher() }.getOrElse {
+            return BiometricSetupResult.Error("Fingerprint sign-in is not available on this phone.")
+        }
+        return when (val outcome = BiometricAuth.authenticate(
+            activity = activity,
+            title = "Turn on fingerprint sign-in",
+            subtitle = "Touch the fingerprint sensor to confirm",
+            negativeText = "Cancel",
+            cipher = cipher
+        )) {
+            is BiometricAuth.Outcome.Cancelled -> BiometricSetupResult.Cancelled
+            is BiometricAuth.Outcome.Failed -> BiometricSetupResult.Error(outcome.message)
+            is BiometricAuth.Outcome.Success -> runCatching {
+                biometricLoginStore.save(employeeId, password, outcome.cipher)
+                BiometricSetupResult.Enabled
+            }.getOrElse { BiometricSetupResult.Error("Fingerprint sign-in could not be turned on. Please try again.") }
+        }
+    }
+
+    fun disableBiometricLogin() {
+        viewModelScope.launch { biometricLoginStore.clear() }
+    }
+
     fun setNotificationsEnabled(enabled: Boolean) {
         viewModelScope.launch { notificationPreferences.setEnabled(enabled) }
     }
 
     fun checkForUpdatesManual(onResult: (isUpdateAvailable: Boolean, message: String) -> Unit) {
+        if (appUpdateManager.isStagingBuild) {
+            onResult(false, "Test build (v${com.skypass.skytrack.BuildConfig.VERSION_NAME}). New test builds are shared by the team.")
+            return
+        }
         viewModelScope.launch {
             try {
                 val update = appUpdateManager.checkForUpdates(isManualCheck = true)

@@ -309,13 +309,13 @@ fun LeaveScreen(
     if (leaveToCancel != null) {
         val target = leaveToCancel!!
         val dateText = if (!target.from.isNullOrBlank() && !target.to.isNullOrBlank() && target.from != target.to) {
-            "${target.from} to ${target.to}"
+            "${leaveDateLabel(target.from)} to ${leaveDateLabel(target.to)}"
         } else {
-            target.from ?: "the selected date"
+            target.from?.let { leaveDateLabel(it) } ?: "the selected date"
         }
         SkyTrackDialog(
             title = "Cancel Leave Request",
-            message = "Are you sure you want to cancel your ${target.type.orEmpty().ifBlank { "leave" }} request for $dateText?",
+            message = "Are you sure you want to cancel your ${leaveTypeLabel(target.type)} request for $dateText?",
             icon = Icons.Rounded.Close,
             type = SkyTrackDialogType.WARNING,
             confirmText = "Yes, Cancel",
@@ -2099,7 +2099,7 @@ private fun RecentLeaveHistorySection(
             val formatDays = { value: Float? ->
                 if (value == null) ""
                 else if (value % 1.0f == 0.0f) value.toInt().toString()
-                else String.format("%.1f", value)
+                else String.format(Locale.ENGLISH, "%.1f", value)
             }
 
             Surface(
@@ -2135,7 +2135,7 @@ private fun RecentLeaveHistorySection(
                                     color = Slate300
                                 )
                                 Text(
-                                    text = leave.type.orEmpty().ifBlank { "Leave" },
+                                    text = leaveTypeLabel(leave.type),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Slate700
@@ -2272,3 +2272,17 @@ fun LeaveBottomNavigationDock(
         onProfileClick = onProfileClick
     )
 }
+
+/** Readable leave type: the server stores short codes ("lop", "casual", "sick") for newer requests. */
+private fun leaveTypeLabel(type: String?): String = when (type?.trim()?.lowercase()) {
+    null, "" -> "Leave"
+    "lop" -> "Loss of Pay"
+    "casual" -> "Casual Leave"
+    "sick" -> "Sick Leave"
+    else -> type.trim()
+}
+
+/** "2026-11-20" -> "Nov 20, 2026" (same format as the request list); other text is shown as is. */
+private fun leaveDateLabel(date: String): String =
+    runCatching { java.time.LocalDate.parse(date.take(10)).format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH)) }
+        .getOrDefault(date)

@@ -1,5 +1,6 @@
 package com.skypass.skytrack.ui.monthly
 
+import com.skypass.skytrack.R
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -138,15 +139,14 @@ object TimesheetPdfGenerator {
             val page = pdfDocument.startPage(pageInfo)
             val canvas = page.canvas
 
-            val letterheadResId = context.resources.getIdentifier("letterhead", "drawable", context.packageName)
-            if (letterheadResId != 0) {
-                val bitmap = android.graphics.BitmapFactory.decodeResource(context.resources, letterheadResId)
-                if (bitmap != null) {
-                    canvas.drawBitmap(bitmap, null, RectF(0f, 0f, PAGE_WIDTH.toFloat(), PAGE_HEIGHT.toFloat()), null)
-                }
+            // Referenced directly (not by name) so release builds keep the image when unused resources are removed
+            val bitmap = android.graphics.BitmapFactory.decodeResource(context.resources, R.drawable.letterhead)
+            val pageHasLetterhead = bitmap != null
+            if (bitmap != null) {
+                canvas.drawBitmap(bitmap, null, RectF(0f, 0f, PAGE_WIDTH.toFloat(), PAGE_HEIGHT.toFloat()), null)
             }
 
-            var cursorY = if (letterheadResId != 0) 160f else MARGIN_TOP
+            var cursorY = if (pageHasLetterhead) 160f else MARGIN_TOP
 
             // Draw Header on first page (full header) or subsequent pages (compact header)
             if (pageNumber == 1) {
@@ -174,7 +174,7 @@ object TimesheetPdfGenerator {
                     leaveDays = leaveDaysCount,
                     totalActiveHours = totalActiveFormatted,
                     totalBreakHours = totalBreakFormatted,
-                    hasLetterhead = (letterheadResId != 0)
+                    hasLetterhead = pageHasLetterhead
                 )
             } else {
                 cursorY = drawCompactHeader(
@@ -217,7 +217,7 @@ object TimesheetPdfGenerator {
                     paintText = paintText,
                     paintFill = paintFill,
                     paintStroke = paintStroke,
-                    hasLetterhead = (letterheadResId != 0)
+                    hasLetterhead = pageHasLetterhead
                 )
 
                 cursorY += rowHeight
@@ -237,7 +237,7 @@ object TimesheetPdfGenerator {
                     paintText = paintText,
                     paintFill = paintFill,
                     paintStroke = paintStroke,
-                    hasLetterhead = (letterheadResId != 0)
+                    hasLetterhead = pageHasLetterhead
                 )
 
                 // Signatures & Legal Verification

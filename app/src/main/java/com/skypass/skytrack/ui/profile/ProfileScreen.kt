@@ -14,6 +14,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.widget.Toast
+import com.skypass.skytrack.data.auth.BiometricAuth
+import com.skypass.skytrack.data.auth.findFragmentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.collectAsState
@@ -59,6 +61,7 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Notifications
@@ -73,6 +76,7 @@ import androidx.compose.material3.Text
 import com.skypass.skytrack.util.ImageCompressor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -103,6 +107,7 @@ import com.skypass.skytrack.data.local.Session
 import com.skypass.skytrack.ui.components.SkyTrackBottomNavigationDock
 import com.skypass.skytrack.ui.components.SkyTrackNavTab
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
@@ -196,6 +201,75 @@ fun ProfileScreen(
                 }
             }
         }
+    }
+    // Fingerprint sign-in: on when it is set up for this employee on this phone
+    val biometricAccount by viewModel.biometricAccount.collectAsState()
+    var biometricAvailability by remember { mutableStateOf(BiometricAuth.availability(context)) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) biometricAvailability = BiometricAuth.availability(context)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val biometricEnabled = biometricAvailability == BiometricAuth.Availability.AVAILABLE &&
+        biometricAccount?.employeeId.equals(session.employeeId, ignoreCase = true)
+    var showBiometricSetup by remember { mutableStateOf(false) }
+    var biometricSetupBusy by remember { mutableStateOf(false) }
+    var biometricSetupError by remember { mutableStateOf<String?>(null) }
+    val biometricScope = rememberCoroutineScope()
+    val onToggleBiometric: () -> Unit = {
+        when {
+            biometricEnabled -> {
+                viewModel.disableBiometricLogin()
+                Toast.makeText(context, "Fingerprint sign-in turned off", Toast.LENGTH_SHORT).show()
+            }
+            biometricAvailability == BiometricAuth.Availability.NOT_ENROLLED -> {
+                Toast.makeText(context, "Add a fingerprint in your phone's settings first.", Toast.LENGTH_LONG).show()
+                val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    Intent(Settings.ACTION_BIOMETRIC_ENROLL).putExtra(
+                        Settings.EXTRA_BIOMETRIC_AUTHENTICATORS_ALLOWED,
+                        androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
+                    )
+                } else {
+                    Intent(Settings.ACTION_SECURITY_SETTINGS)
+                }
+                runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                Unit
+            }
+            else -> {
+                biometricSetupError = null
+                showBiometricSetup = true
+            }
+        }
+    }
+    if (showBiometricSetup) {
+        BiometricSetupDialog(
+            busy = biometricSetupBusy,
+            error = biometricSetupError,
+            onPasswordEdited = { biometricSetupError = null },
+            onDismiss = { showBiometricSetup = false },
+            onConfirm = { password ->
+                val activity = context.findFragmentActivity()
+                if (activity == null) {
+                    biometricSetupError = "Fingerprint sign-in is not available here."
+                } else {
+                    biometricSetupBusy = true
+                    biometricScope.launch {
+                        val result = viewModel.enableBiometricLogin(activity, session.employeeId, password)
+                        biometricSetupBusy = false
+                        when (result) {
+                            is ProfileViewModel.BiometricSetupResult.Enabled -> {
+                                showBiometricSetup = false
+                                Toast.makeText(context, "Fingerprint sign-in is on", Toast.LENGTH_SHORT).show()
+                            }
+                            is ProfileViewModel.BiometricSetupResult.Cancelled -> Unit
+                            is ProfileViewModel.BiometricSetupResult.Error -> biometricSetupError = result.message
+                        }
+                    }
+                }
+            }
+        )
     }
     var showPhotoSourceSheet by remember { mutableStateOf(false) }
 
@@ -348,6 +422,9 @@ fun ProfileScreen(
             PreferencesCard(
                 punchInAlertsEnabled = punchInAlertsEnabled,
                 onTogglePunchInAlerts = onTogglePunchInAlerts,
+                biometricAvailability = biometricAvailability,
+                biometricEnabled = biometricEnabled,
+                onToggleBiometric = onToggleBiometric,
                 onChangePasswordClick = onChangePasswordClick
             )
 
@@ -1156,6 +1233,9 @@ private fun DetailRowItem(
 private fun PreferencesCard(
     punchInAlertsEnabled: Boolean,
     onTogglePunchInAlerts: () -> Unit,
+    biometricAvailability: BiometricAuth.Availability,
+    biometricEnabled: Boolean,
+    onToggleBiometric: () -> Unit,
     onChangePasswordClick: () -> Unit
 ) {
     Surface(
@@ -1201,7 +1281,7 @@ private fun PreferencesCard(
                             color = Slate800
                         )
                         Text(
-                            text = "Notify 15m before shift begins",
+                            text = "Shift reminders, late marks and leave updates",
                             fontSize = 10.sp,
                             color = Slate400
                         )
@@ -1215,9 +1295,66 @@ private fun PreferencesCard(
                 )
             }
 
+            // Item 2: Fingerprint sign-in (hidden on phones without a strong biometric sensor)
+            if (biometricAvailability != BiometricAuth.Availability.UNAVAILABLE) {
+                HorizontalDivider(color = Slate100, thickness = 1.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onToggleBiometric)
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(RedBg50),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Fingerprint,
+                                contentDescription = "Fingerprint Sign-in",
+                                tint = BrandCrimson,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "Fingerprint Sign-in",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate800
+                            )
+                            Text(
+                                text = when {
+                                    biometricAvailability == BiometricAuth.Availability.NOT_ENROLLED ->
+                                        "Add a fingerprint in phone settings to use this"
+                                    biometricEnabled -> "On · sign in without your password"
+                                    else -> "Sign in with your fingerprint"
+                                },
+                                fontSize = 10.sp,
+                                color = Slate400
+                            )
+                        }
+                    }
+
+                    CustomPillToggle(
+                        checked = biometricEnabled,
+                        onCheckedChange = onToggleBiometric
+                    )
+                }
+            }
+
             HorizontalDivider(color = Slate100, thickness = 1.dp)
 
-            // Item 2: Change Password
+            // Item 3: Change Password
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1252,7 +1389,7 @@ private fun PreferencesCard(
                             color = Slate800
                         )
                         Text(
-                            text = "Updated 45 days ago",
+                            text = "Update the password you sign in with",
                             fontSize = 10.sp,
                             color = Slate400
                         )

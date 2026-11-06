@@ -407,6 +407,12 @@ data class DeviceTokenRequest(
     @SerializedName("appVersion") val appVersion: String? = null
 )
 
+data class ChangeOwnPasswordRequest(
+    @SerializedName("action") val action: String = "change_own_password",
+    @SerializedName("currentPassword") val currentPassword: String,
+    @SerializedName("newPassword") val newPassword: String
+)
+
 data class BasicResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("message") val message: String? = null,

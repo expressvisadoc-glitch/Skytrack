@@ -1,11 +1,13 @@
 package com.skypass.skytrack.data.repository
 
 import com.skypass.skytrack.BuildConfig
+import com.skypass.skytrack.data.auth.BiometricLoginStore
 import com.skypass.skytrack.data.local.RememberedAccount
 import com.skypass.skytrack.data.local.Session
 import com.skypass.skytrack.data.local.SessionDataStore
 import com.skypass.skytrack.data.remote.ApiErrorExtractor
 import com.skypass.skytrack.data.remote.AttendanceRequest
+import com.skypass.skytrack.data.remote.ChangeOwnPasswordRequest
 import com.skypass.skytrack.data.remote.EmployeeDto
 import com.skypass.skytrack.data.remote.LoginRequest
 import com.skypass.skytrack.data.remote.SkyTrackApi
@@ -19,10 +21,14 @@ import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** The server refused the employee ID and password (wrong password, or the account is not active) */
+class SignInRejectedException(message: String) : IllegalStateException(message)
+
 @Singleton
 class AuthRepository @Inject constructor(
     private val api: SkyTrackApi,
-    private val sessionDataStore: SessionDataStore
+    private val sessionDataStore: SessionDataStore,
+    private val biometricLoginStore: BiometricLoginStore
 ) {
     val session: Flow<Session?> = sessionDataStore.session
         .map { storedSession ->
@@ -45,6 +51,23 @@ class AuthRepository @Inject constructor(
         rememberMe: Boolean = false
     ): Result<Session> = runCatching {
         val trimmedEmployeeId = employeeId.trim()
+        authenticate(trimmedEmployeeId, password).also { session ->
+            sessionDataStore.saveSession(session)
+            sessionDataStore.saveRememberMe(rememberMe, trimmedEmployeeId)
+            // Biometric sign-in belongs to one account; signing in as someone else on this phone turns it off
+            val biometricAccount = biometricLoginStore.currentAccount()
+            if (biometricAccount != null && !biometricAccount.employeeId.equals(session.employeeId, ignoreCase = true)) {
+                biometricLoginStore.clear()
+            }
+        }
+    }
+
+    /** Checks the signed-in employee's password with the server (used before turning on biometric sign-in) */
+    suspend fun verifyPassword(employeeId: String, password: String): Result<Session> = runCatching {
+        authenticate(employeeId.trim(), password).also { sessionDataStore.saveSession(it) }
+    }
+
+    private suspend fun authenticate(trimmedEmployeeId: String, password: String): Session {
         val response = try {
             api.login(
                 endpoint = BuildConfig.SKYTRACK_API_URL,
@@ -58,6 +81,9 @@ class AuthRepository @Inject constructor(
                 httpException,
                 "Invalid Employee ID or password."
             )
+            if (httpException.code() == 401 || httpException.code() == 403) {
+                throw SignInRejectedException(friendlyMsg)
+            }
             throw IllegalStateException(friendlyMsg)
         }
 
@@ -65,10 +91,10 @@ class AuthRepository @Inject constructor(
             val message = response.message
                 ?.takeIf { it.isNotBlank() }
                 ?: "Invalid Employee ID or password."
-            throw IllegalStateException(ApiErrorExtractor.cleanErrorString(message, "Invalid Employee ID or password."))
+            throw SignInRejectedException(ApiErrorExtractor.cleanErrorString(message, "Invalid Employee ID or password."))
         }
 
-        Session(
+        return Session(
             token = response.session.token,
             employeeId = response.employee.employeeId,
             name = response.employee.name,
@@ -82,10 +108,7 @@ class AuthRepository @Inject constructor(
             createdAt = response.employee.createdAt ?: "",
             joiningDate = response.employee.joiningDate ?: "",
             profilePhotoUrl = response.employee.profilePhotoUrl.orEmpty()
-        ).also {
-            sessionDataStore.saveSession(it)
-            sessionDataStore.saveRememberMe(rememberMe, trimmedEmployeeId)
-        }
+        )
     }
 
     suspend fun updateProfilePhoto(token: String, base64Photo: String?): Result<String> = runCatching {
@@ -132,6 +155,35 @@ class AuthRepository @Inject constructor(
             sessionDataStore.saveSession(updated)
         }
         emp
+    }
+
+    /**
+     * Changes the signed-in employee's own password; the server checks the current one first. Changing a password
+     * ends every session of the account (other phones are signed out), so this phone signs in again right away
+     * with the new password and stays signed in.
+     */
+    suspend fun changeOwnPassword(
+        token: String,
+        employeeId: String,
+        currentPassword: String,
+        newPassword: String
+    ): Result<String> = runCatching {
+        val response = try {
+            api.changeOwnPassword(
+                endpoint = BuildConfig.SKYTRACK_API_URL,
+                authorization = "Bearer $token",
+                request = ChangeOwnPasswordRequest(currentPassword = currentPassword, newPassword = newPassword)
+            )
+        } catch (httpException: HttpException) {
+            throw IllegalStateException(
+                ApiErrorExtractor.getMessage(httpException, "Your password could not be changed. Please try again.")
+            )
+        }
+        if (!response.success) {
+            throw IllegalStateException(response.message ?: "Your password could not be changed. Please try again.")
+        }
+        runCatching { sessionDataStore.saveSession(authenticate(employeeId.trim(), newPassword)) }
+        response.message ?: "Your password has been changed."
     }
 
     suspend fun logout() {

@@ -147,6 +147,13 @@ interface SkyTrackApi {
     ): UpdateProfilePhotoResponse
 
     @POST
+    suspend fun changeOwnPassword(
+        @Url endpoint: String,
+        @Header("Authorization") authorization: String,
+        @Body request: ChangeOwnPasswordRequest
+    ): BasicResponse
+
+    @POST
     suspend fun getProfile(
         @Url endpoint: String,
         @Header("Authorization") authorization: String,

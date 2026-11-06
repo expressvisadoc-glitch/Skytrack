@@ -26,6 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Badge
+import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
@@ -91,7 +92,11 @@ fun LoginScreen(
     onLogin: (String, String, Boolean) -> Unit,
     onSuccess: () -> Unit,
     onClearError: () -> Unit,
-    rememberedAccount: RememberedAccount? = null
+    rememberedAccount: RememberedAccount? = null,
+    // Employee ID that fingerprint sign-in is set up for on this phone (null when off or not available)
+    biometricEmployeeId: String? = null,
+    onBiometricLogin: () -> Unit = {},
+    consumeAutoBiometricPrompt: () -> Boolean = { false }
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -123,6 +128,13 @@ fun LoginScreen(
             } else if (!account.rememberMe) {
                 hasLoadedRemembered = true
             }
+        }
+    }
+
+    // Opens the fingerprint prompt by itself once when the app starts here
+    LaunchedEffect(biometricEmployeeId) {
+        if (biometricEmployeeId != null && consumeAutoBiometricPrompt()) {
+            onBiometricLogin()
         }
     }
 
@@ -360,6 +372,51 @@ fun LoginScreen(
                                     modifier = Modifier.size(19.dp)
                                 )
                             }
+                        }
+
+                        if (biometricEmployeeId != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .border(BorderStroke(1.dp, BrandRed.copy(alpha = 0.35f)), RoundedCornerShape(16.dp))
+                                    .background(Color.White)
+                                    .clickable(enabled = !loading) {
+                                        keyboardController?.hide()
+                                        focusManager.clearFocus()
+                                        onBiometricLogin()
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Fingerprint,
+                                        contentDescription = null,
+                                        tint = BrandRed,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Sign in with fingerprint",
+                                        color = BrandRed,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "Set up for $biometricEmployeeId",
+                                color = Slate400,
+                                fontSize = 11.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 0.dp)
+                            )
                         }
                     }
                 }

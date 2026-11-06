@@ -7,10 +7,10 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.fragment.app.FragmentActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
@@ -52,11 +52,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.Alignment
 import dagger.hilt.android.AndroidEntryPoint
+import com.skypass.skytrack.data.auth.BiometricAuth
 import javax.inject.Inject
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+// FragmentActivity (a ComponentActivity) because the biometric prompt is hosted in a fragment
+class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var authRepository: AuthRepository
@@ -103,6 +105,7 @@ class MainActivity : ComponentActivity() {
 
     private fun signOut(session: Session?) {
         loginViewModel.resetState()
+        loginViewModel.suppressAutoBiometricPrompt()
         lifecycleScope.launch {
             session?.let { pushManager.unregisterCurrentDevice(it.token) }
             authRepository.logout()
@@ -237,12 +240,22 @@ class MainActivity : ComponentActivity() {
                                 showChangePassword = false
                                 showNotifications = false
 
+                                val biometricAccount by loginViewModel.biometricAccount.collectAsState()
+                                val startBiometricLogin = {
+                                    lifecycleScope.launch { loginViewModel.biometricLogin(this@MainActivity) }
+                                    Unit
+                                }
                                 LoginScreen(
                                     state = loginState,
                                     onLogin = loginViewModel::login,
                                     onSuccess = {},
                                     onClearError = loginViewModel::clearError,
-                                    rememberedAccount = rememberedAccount
+                                    rememberedAccount = rememberedAccount,
+                                    biometricEmployeeId = biometricAccount?.employeeId?.takeIf {
+                                        BiometricAuth.availability(context) == BiometricAuth.Availability.AVAILABLE
+                                    },
+                                    onBiometricLogin = startBiometricLogin,
+                                    consumeAutoBiometricPrompt = loginViewModel::consumeAutoBiometricPrompt
                                 )
                             }
 

@@ -130,6 +130,7 @@ dependencies {
     // Foreground location for office geofence checks
     implementation(libs.play.services.location)
     implementation(libs.osmdroid.android)
+    implementation(libs.androidx.biometric)
 
     // Push notifications
     implementation(platform(libs.firebase.bom))

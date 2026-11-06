@@ -40,6 +40,7 @@ class PayslipRepositoryTest {
         override suspend fun publicHolidays(endpoint: String, authorization: String, request: AttendanceRequest): HolidayResponse = TODO()
         override suspend fun updateProfilePhoto(endpoint: String, authorization: String, request: UpdateProfilePhotoRequest): UpdateProfilePhotoResponse = TODO()
         override suspend fun getProfile(endpoint: String, authorization: String, request: AttendanceRequest): ProfileResponse = TODO()
+        override suspend fun changeOwnPassword(endpoint: String, authorization: String, request: com.skypass.skytrack.data.remote.ChangeOwnPasswordRequest): BasicResponse = TODO()
         override suspend fun notificationsList(endpoint: String, authorization: String, request: NotificationsRequest): NotificationsListResponse = TODO()
         override suspend fun notificationsMarkRead(endpoint: String, authorization: String, request: NotificationsRequest): BasicResponse = TODO()
         override suspend fun deviceToken(endpoint: String, authorization: String, request: DeviceTokenRequest): BasicResponse = TODO()

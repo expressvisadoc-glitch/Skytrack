@@ -1,6 +1,11 @@
 package com.skypass.skytrack.ui.profile
 
 import android.widget.Toast
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import com.skypass.skytrack.data.auth.findFragmentActivity
+import kotlinx.coroutines.launch
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -101,9 +106,12 @@ fun ChangePasswordScreen(
     onBack: () -> Unit,
     onNavigateHome: () -> Unit,
     onNavigateLeaves: () -> Unit,
-    onNavigateStatistics: () -> Unit
+    onNavigateStatistics: () -> Unit,
+    viewModel: ChangePasswordViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val busy by viewModel.busy.collectAsState()
 
     var currentPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
@@ -162,7 +170,12 @@ fun ChangePasswordScreen(
                 showCurrentPassword = showCurrentPassword,
                 onToggleCurrentPassword = { showCurrentPassword = !showCurrentPassword },
                 onVerifyCurrentPassword = {
-                    Toast.makeText(context, "Current password verified", Toast.LENGTH_SHORT).show()
+                    if (!busy) {
+                        scope.launch {
+                            val message = viewModel.verifyCurrentPassword(session.employeeId, currentPassword)
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 },
                 newPassword = newPassword,
                 onNewPasswordChange = { newPassword = it },
@@ -209,8 +222,22 @@ fun ChangePasswordScreen(
                         Toast.makeText(context, "New passwords do not match", Toast.LENGTH_SHORT).show()
                         return@ActionsAndFooter
                     }
-                    Toast.makeText(context, "Password updated successfully!", Toast.LENGTH_LONG).show()
-                    onBack()
+                    if (busy) return@ActionsAndFooter
+                    scope.launch {
+                        when (val outcome = viewModel.changePassword(
+                            activity = context.findFragmentActivity(),
+                            session = session,
+                            currentPassword = currentPassword,
+                            newPassword = newPassword
+                        )) {
+                            is ChangePasswordViewModel.Outcome.Changed -> {
+                                Toast.makeText(context, outcome.message, Toast.LENGTH_LONG).show()
+                                onBack()
+                            }
+                            is ChangePasswordViewModel.Outcome.Error ->
+                                Toast.makeText(context, outcome.message, Toast.LENGTH_LONG).show()
+                        }
+                    }
                 },
                 onContactHr = {
                     Toast.makeText(context, "Contact HR at support@skypass.ae", Toast.LENGTH_SHORT).show()
@@ -230,6 +257,8 @@ fun ChangePasswordScreen(
             onAnalyticsClick = onNavigateStatistics,
             onProfileClick = onBack
         )
+
+        com.skypass.skytrack.ui.components.SkyTrackLoadingOverlay(visible = busy)
     }
 }
 
@@ -900,7 +929,7 @@ private fun ActionsAndFooter(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "SkyTrack Mobile v2.4.1 (Build 2026.02) • Skypass Visa Services",
+            text = "SkyTrack Mobile v${com.skypass.skytrack.BuildConfig.VERSION_NAME} • Skypass Visa Services",
             fontSize = 10.sp,
             fontWeight = FontWeight.Medium,
             color = Slate400,
