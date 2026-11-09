@@ -1,5 +1,7 @@
 package com.skypass.skytrack.ui.login
 
+import com.skypass.skytrack.ui.components.Glass.glass
+import com.skypass.skytrack.ui.components.Glass.tintedGlass
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -147,8 +149,9 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PageBgColor)
+            .background(com.skypass.skytrack.ui.components.Glass.PageColor)
     ) {
+        com.skypass.skytrack.ui.components.GlassBackdrop(Modifier.matchParentSize())
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -204,16 +207,15 @@ fun LoginScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .shadow(
-                            elevation = 12.dp,
+                            // Soft: a deep shadow would show through the see-through glass
+                            elevation = 8.dp,
                             shape = RoundedCornerShape(24.dp),
-                            spotColor = Color(0xFF64748B).copy(alpha = 0.15f)
+                            ambientColor = Color(0xFF1F2687).copy(alpha = 0.05f),
+                            spotColor = Color(0xFF1F2687).copy(alpha = 0.10f)
                         )
                         .clip(RoundedCornerShape(24.dp))
-                        .background(Color.White.copy(alpha = 0.95f))
-                        .border(
-                            BorderStroke(1.dp, Color(0xFFF1F5F9)),
-                            RoundedCornerShape(24.dp)
-                        )
+                        .background(com.skypass.skytrack.ui.components.Glass.Fill)
+                        .border(1.dp, com.skypass.skytrack.ui.components.Glass.Edge, RoundedCornerShape(24.dp))
                         .padding(24.dp)
                 ) {
                     Column(
@@ -332,12 +334,7 @@ fun LoginScreen(
                                 .fillMaxWidth()
                                 .padding(top = 8.dp)
                                 .height(52.dp)
-                                .shadow(
-                                    elevation = 8.dp,
-                                    shape = RoundedCornerShape(16.dp),
-                                    spotColor = BrandRedDark.copy(alpha = 0.35f)
-                                )
-                                .clip(RoundedCornerShape(16.dp))
+                                .tintedGlass(RoundedCornerShape(16.dp), if (loading) BrandRed.copy(alpha = 0.6f) else BrandRed, elevation = 8.dp)
                                 .background(
                                     brush = Brush.horizontalGradient(
                                         colors = if (loading) listOf(
@@ -379,9 +376,11 @@ fun LoginScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(52.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .border(BorderStroke(1.dp, BrandRed.copy(alpha = 0.35f)), RoundedCornerShape(16.dp))
-                                    .background(Color.White)
+                                    .glass(
+                                        RoundedCornerShape(16.dp),
+                                        elevation = 5.dp,
+                                        border = BorderStroke(1.dp, BrandRed.copy(alpha = 0.35f))
+                                    )
                                     .clickable(enabled = !loading) {
                                         keyboardController?.hide()
                                         focusManager.clearFocus()
@@ -499,14 +498,12 @@ private fun EnterpriseInputField(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color.White)
-                .border(
-                    BorderStroke(
-                        width = if (isFocused) 1.5.dp else 1.dp,
-                        color = if (isFocused) BrandRed else BorderColor
-                    ),
-                    RoundedCornerShape(16.dp)
+                .glass(
+                    RoundedCornerShape(16.dp),
+                    elevation = 0.dp,
+                    // A red edge while typing; otherwise the bright glass edge
+                    border = if (isFocused) BorderStroke(1.5.dp, BrandRed) else null,
+                    fill = com.skypass.skytrack.ui.components.Glass.InputFill
                 )
                 .padding(horizontal = 16.dp),
             contentAlignment = Alignment.CenterStart

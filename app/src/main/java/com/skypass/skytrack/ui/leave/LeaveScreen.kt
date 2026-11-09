@@ -1,5 +1,8 @@
 package com.skypass.skytrack.ui.leave
 
+import com.skypass.skytrack.ui.components.Glass.glass
+import com.skypass.skytrack.ui.components.Glass.tintedGlass
+import com.skypass.skytrack.ui.components.GlassSurface
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -336,8 +339,9 @@ fun LeaveScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(SurfaceBase)
+            .background(com.skypass.skytrack.ui.components.Glass.PageColor)
     ) {
+        com.skypass.skytrack.ui.components.GlassBackdrop(Modifier.matchParentSize())
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -369,12 +373,9 @@ fun LeaveScreen(
             Spacer(modifier = Modifier.height(14.dp))
 
             // Main Leave Configuration Card
-            Surface(
+            GlassSurface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = SurfaceCard,
-                border = BorderStroke(1.dp, Slate100),
-                shadowElevation = 1.dp
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -558,13 +559,10 @@ private fun LeaveTopBar(onBack: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Surface(
-                onClick = onBack,
+            GlassSurface(
                 modifier = Modifier.size(40.dp),
                 shape = RoundedCornerShape(16.dp),
-                color = SurfaceCard,
-                border = BorderStroke(1.dp, Slate100),
-                shadowElevation = 1.dp
+                onClick = onBack
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -605,12 +603,9 @@ private fun EmployeeContextSubHeader(
     employeeId: String,
     role: String
 ) {
-    Surface(
+    GlassSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = SurfaceCard,
-        border = BorderStroke(1.dp, Slate100.copy(alpha = 0.9f)),
-        shadowElevation = 1.dp
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
             modifier = Modifier
@@ -782,12 +777,9 @@ private fun BalanceCard(
     footerBadgeText: Color,
     minWidth: Int
 ) {
-    Surface(
+    GlassSurface(
         modifier = Modifier.width(minWidth.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = SurfaceCard,
-        border = BorderStroke(1.dp, Slate100),
-        shadowElevation = 1.dp
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(
             modifier = Modifier
@@ -969,11 +961,14 @@ private fun LeaveTypeOptionButton(
     Surface(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(64.dp),
+        modifier = modifier
+            .height(64.dp)
+            .then(
+                if (isSelected && enabled) Modifier.tintedGlass(RoundedCornerShape(16.dp), BrandRed)
+                else Modifier.glass(RoundedCornerShape(16.dp), elevation = if (enabled) 3.dp else 0.dp)
+            ),
         shape = RoundedCornerShape(16.dp),
-        color = bgColor,
-        border = BorderStroke(1.dp, borderColor),
-        shadowElevation = if (isSelected && enabled) 2.dp else 0.dp
+        color = if (enabled) Color.Transparent else bgColor.copy(alpha = 0.5f)
     ) {
         Column(
             modifier = Modifier
@@ -1028,11 +1023,10 @@ private fun LeaveCalendarSection(
     val holidayDates = remember(holidays) { holidays.map { it.date }.toSet() }
     var holidayIndex by remember(currentMonth, holidays) { mutableIntStateOf(0) }
 
-    Surface(
+    GlassSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = Slate50,
-        border = BorderStroke(1.dp, Slate100)
+        elevation = 0.dp
     ) {
         Column(
             modifier = Modifier
@@ -1052,10 +1046,7 @@ private fun LeaveCalendarSection(
                     Box(
                         modifier = Modifier
                             .size(32.dp)
-                            .shadow(1.dp, RoundedCornerShape(10.dp))
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(SurfaceCard)
-                            .border(1.dp, Slate100, RoundedCornerShape(10.dp)),
+                            .glass(RoundedCornerShape(10.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -1075,13 +1066,10 @@ private fun LeaveCalendarSection(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Surface(
-                        onClick = onPreviousMonth,
+                    GlassSurface(
                         modifier = Modifier.size(28.dp),
                         shape = RoundedCornerShape(10.dp),
-                        color = SurfaceCard,
-                        border = BorderStroke(1.dp, Slate100),
-                        shadowElevation = 0.5.dp
+                        onClick = onPreviousMonth
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
@@ -1093,13 +1081,10 @@ private fun LeaveCalendarSection(
                         }
                     }
 
-                    Surface(
-                        onClick = onNextMonth,
+                    GlassSurface(
                         modifier = Modifier.size(28.dp),
                         shape = RoundedCornerShape(10.dp),
-                        color = SurfaceCard,
-                        border = BorderStroke(1.dp, Slate100),
-                        shadowElevation = 0.5.dp
+                        onClick = onNextMonth
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
@@ -1440,9 +1425,7 @@ private fun LeaveCalendarSection(
                             modifier = Modifier
                                 .size(16.dp)
                                 .offset(x = if (isHalfDay) 20.dp else 0.dp)
-                                .shadow(1.dp, CircleShape)
-                                .clip(CircleShape)
-                                .background(Color.White)
+                                .glass(CircleShape)
                         )
                     }
                 }
@@ -1581,10 +1564,14 @@ private fun SessionOptionButton(
 ) {
     Surface(
         onClick = onClick,
-        modifier = modifier.height(34.dp),
+        modifier = modifier
+            .height(34.dp)
+            .then(
+                if (isSelected) Modifier.tintedGlass(RoundedCornerShape(8.dp), BrandRed, elevation = 3.dp)
+                else Modifier.glass(RoundedCornerShape(8.dp), elevation = 2.dp)
+            ),
         shape = RoundedCornerShape(8.dp),
-        color = if (isSelected) BrandRed else SurfaceCard,
-        border = BorderStroke(1.dp, if (isSelected) BrandRed else Slate200)
+        color = Color.Transparent
     ) {
         Row(
             modifier = Modifier
@@ -1709,11 +1696,10 @@ private fun LeaveReasonInput(
 private fun ApproverHandoverCard(managerName: String) {
     val cleanManagerName = managerName.trim()
 
-    Surface(
+    GlassSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        color = Slate50,
-        border = BorderStroke(1.dp, Slate100)
+        elevation = 0.dp
     ) {
         Row(
             modifier = Modifier
@@ -1812,9 +1798,7 @@ private fun SwipeToSubmitSlider(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
-            .clip(RoundedCornerShape(28.dp))
-            .background(Slate200.copy(alpha = 0.7f))
-            .border(1.dp, trackBorderColor, RoundedCornerShape(28.dp))
+            .glass(RoundedCornerShape(28.dp), elevation = 4.dp)
             .onSizeChanged { trackWidthPx = it.width.toFloat() }
             .padding(4.dp),
         contentAlignment = Alignment.CenterStart
@@ -1926,9 +1910,7 @@ private fun SwipeToSubmitSlider(
             modifier = Modifier
                 .offset { IntOffset(knobTargetX.roundToInt(), 0) }
                 .size(knobSizeDp)
-                .shadow(4.dp, CircleShape)
-                .clip(CircleShape)
-                .background(knobBg)
+                .tintedGlass(CircleShape, knobBg, elevation = 5.dp)
                 .then(
                     if (!isLoading && !isSubmitted) {
                         Modifier
@@ -2102,12 +2084,9 @@ private fun RecentLeaveHistorySection(
                 else String.format(Locale.ENGLISH, "%.1f", value)
             }
 
-            Surface(
+            GlassSurface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                color = SurfaceCard,
-                border = BorderStroke(1.dp, Slate100),
-                shadowElevation = 0.5.dp
+                shape = RoundedCornerShape(14.dp)
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -2204,13 +2183,13 @@ private fun RecentLeaveHistorySection(
                             OutlinedButton(
                                 onClick = { onCancelLeave(leave) },
                                 enabled = !isCancelling,
-                                modifier = Modifier.height(28.dp),
+                                modifier = Modifier.height(28.dp).glass(RoundedCornerShape(8.dp), elevation = 3.dp),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     contentColor = BrandRed
                                 ),
-                                border = BorderStroke(1.dp, BrandRed.copy(alpha = 0.35f)),
-                                shape = RoundedCornerShape(8.dp)
+                                shape = RoundedCornerShape(8.dp),
+                                border = null
                             ) {
                                 if (isThisCancelling) {
                                     CircularProgressIndicator(
@@ -2234,10 +2213,10 @@ private fun RecentLeaveHistorySection(
                     }
                     
                     if (!leave.managerComment.isNullOrBlank()) {
-                        Surface(
-                            color = Slate50,
+                        GlassSurface(
+                            modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            elevation = 0.dp
                         ) {
                             Text(
                                 text = "Admin: ${leave.managerComment}",

@@ -1,5 +1,7 @@
 package com.skypass.skytrack.ui.home
 
+import com.skypass.skytrack.ui.components.Glass.glass
+import com.skypass.skytrack.ui.components.GlassSurface
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -79,11 +81,9 @@ fun SalaryCard(
         runCatching { YearMonth.parse(it).format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH)) }.getOrNull()
     } ?: "This month"
 
-    Surface(
+    GlassSurface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = CardSurface,
-        border = BorderStroke(1.dp, Slate200)
+        shape = RoundedCornerShape(20.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -193,7 +193,7 @@ private fun SalaryBreakdown(salary: SalaryDto) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Slate50, RoundedCornerShape(10.dp))
+                        .glass(RoundedCornerShape(10.dp), elevation = 0.dp)
                         .padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

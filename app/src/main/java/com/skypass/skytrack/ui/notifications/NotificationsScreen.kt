@@ -1,5 +1,7 @@
 package com.skypass.skytrack.ui.notifications
 
+import com.skypass.skytrack.ui.components.Glass.glass
+import com.skypass.skytrack.ui.components.GlassSurface
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -71,8 +73,9 @@ fun NotificationsScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(SurfaceBase)
+            .background(com.skypass.skytrack.ui.components.Glass.PageColor)
     ) {
+        com.skypass.skytrack.ui.components.GlassBackdrop(Modifier.matchParentSize())
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -115,9 +118,9 @@ fun NotificationsScreen(
                         OutlinedButton(
                             onClick = { viewModel.loadMore(session.token) },
                             enabled = !state.isLoadingMore,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().glass(RoundedCornerShape(14.dp), elevation = 3.dp),
                             shape = RoundedCornerShape(14.dp),
-                            border = BorderStroke(1.dp, Slate100)
+                            border = null
                         ) {
                             Text(
                                 text = if (state.isLoadingMore) "Loading…" else "Show older",
@@ -139,13 +142,10 @@ private fun NotificationsTopBar(onBack: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Surface(
-            onClick = onBack,
+        GlassSurface(
             modifier = Modifier.size(40.dp),
             shape = RoundedCornerShape(16.dp),
-            color = CardSurface,
-            border = BorderStroke(1.dp, Slate100),
-            shadowElevation = 1.dp
+            onClick = onBack
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
@@ -178,14 +178,11 @@ private fun NotificationsTopBar(onBack: () -> Unit) {
 @Composable
 private fun NotificationRow(item: NotificationDto, onClick: () -> Unit) {
     val unread = item.readAt == null
-    Surface(
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        color = CardSurface,
-        border = BorderStroke(1.dp, Slate100),
-        shadowElevation = 1.dp
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
             Box(
@@ -235,7 +232,7 @@ private fun EmptyMessage(title: String, message: String, actionLabel: String? = 
         Box(
             modifier = Modifier
                 .size(52.dp)
-                .background(CardSurface, RoundedCornerShape(16.dp)),
+                .glass(RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -251,7 +248,7 @@ private fun EmptyMessage(title: String, message: String, actionLabel: String? = 
         Text(text = message, color = Slate500, fontSize = 13.sp, textAlign = TextAlign.Center, lineHeight = 18.sp)
         if (actionLabel != null) {
             Spacer(modifier = Modifier.height(14.dp))
-            OutlinedButton(onClick = onAction, shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, Slate100)) {
+            OutlinedButton(onClick = onAction, shape = RoundedCornerShape(14.dp), modifier = Modifier.glass(RoundedCornerShape(14.dp), elevation = 3.dp), border = null) {
                 Text(text = actionLabel, color = Slate700, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
         }

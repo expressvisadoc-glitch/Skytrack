@@ -1,5 +1,6 @@
 package com.skypass.skytrack.ui.profile
 
+import com.skypass.skytrack.ui.components.GlassSurface
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -372,8 +373,9 @@ fun ProfileScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BgSurface)
+            .background(com.skypass.skytrack.ui.components.Glass.PageColor)
     ) {
+        com.skypass.skytrack.ui.components.GlassBackdrop(Modifier.matchParentSize())
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -824,12 +826,9 @@ private fun ProfileHeroSection(
             )
 
             // Outer Ring Container
-            Surface(
+            GlassSurface(
                 modifier = Modifier.size(96.dp),
-                shape = CircleShape,
-                color = CardBg,
-                border = BorderStroke(1.dp, Slate100),
-                shadowElevation = 4.dp
+                shape = CircleShape
             ) {
                 Box(
                     modifier = Modifier
@@ -1041,12 +1040,9 @@ private fun MetricItemCard(
     value: String,
     label: String
 ) {
-    Surface(
+    GlassSurface(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        color = CardBg,
-        border = BorderStroke(1.dp, Slate100),
-        shadowElevation = 2.dp
+        shape = RoundedCornerShape(16.dp)
     ) {
         Box(
             modifier = Modifier
@@ -1123,12 +1119,9 @@ private fun EmploymentDetailsCard(
     department: String,
     workShift: String
 ) {
-    Surface(
+    GlassSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = CardBg,
-        border = BorderStroke(1.dp, Slate100),
-        shadowElevation = 2.dp
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(
             modifier = Modifier.padding(14.dp)
@@ -1238,12 +1231,9 @@ private fun PreferencesCard(
     onToggleBiometric: () -> Unit,
     onChangePasswordClick: () -> Unit
 ) {
-    Surface(
+    GlassSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = CardBg,
-        border = BorderStroke(1.dp, Slate100),
-        shadowElevation = 2.dp
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column {
             // Item 1: Punch-in Alerts with custom switch
@@ -1449,15 +1439,13 @@ private fun SignOutSection(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Surface(
+        GlassSurface(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .clickable(onClick = onLogout),
             shape = RoundedCornerShape(16.dp),
-            color = CardBg,
-            border = BorderStroke(1.dp, BrandCrimson.copy(alpha = 0.3f)),
-            shadowElevation = 2.dp
+            border = BorderStroke(1.dp, BrandCrimson.copy(alpha = 0.3f))
         ) {
             Row(
                 modifier = Modifier

@@ -1,6 +1,7 @@
 package com.skypass.skytrack.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -64,7 +65,19 @@ fun SkyTrackBottomNavigationDock(
                     spotColor = Color.Black.copy(alpha = 0.35f)
                 )
                 .clip(CircleShape)
-                .background(DockBgColor)
+                // Dark glass: slightly see-through with a light top edge
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        listOf(DockBgColor.copy(alpha = 0.92f), DockBgColor.copy(alpha = 0.97f))
+                    )
+                )
+                .border(
+                    1.dp,
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = 0.22f), Color.White.copy(alpha = 0.04f))
+                    ),
+                    CircleShape
+                )
                 .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween

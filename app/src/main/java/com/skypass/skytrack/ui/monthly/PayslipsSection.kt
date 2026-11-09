@@ -1,5 +1,7 @@
 package com.skypass.skytrack.ui.monthly
 
+import com.skypass.skytrack.ui.components.Glass.glass
+import com.skypass.skytrack.ui.components.GlassSurface
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -63,11 +65,9 @@ fun PayslipsSection(
 ) {
     var showAmounts by remember { mutableStateOf(false) }
 
-    Surface(
+    GlassSurface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Slate200)
+        shape = RoundedCornerShape(20.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -110,9 +110,9 @@ fun PayslipsSection(
                             onClick = { onOpen(item.month) },
                             enabled = state.openingMonth == null,
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, Slate200),
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.height(34.dp)
+                            modifier = Modifier.height(34.dp).glass(RoundedCornerShape(12.dp), elevation = 3.dp),
+                            border = null
                         ) {
                             if (state.openingMonth == item.month) {
                                 CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp, color = Red700)

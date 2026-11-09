@@ -11,15 +11,26 @@ import android.graphics.Typeface
 import android.graphics.drawable.BitmapDrawable
 import android.view.MotionEvent
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.MyLocation
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.skypass.skytrack.ui.components.Glass.glass
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
@@ -43,15 +54,15 @@ import org.osmdroid.views.overlay.Polygon
 import org.osmdroid.views.overlay.Polyline
 
 private const val ZONE_COLOR = 0xFFE53935.toInt()
-private const val INSIDE_COLOR = 0xFF059669.toInt()
-private const val OUTSIDE_COLOR = 0xFF2563EB.toInt()
+private const val USER_DOT_COLOR = 0xFF059669.toInt()
 
 // Beyond this the view stays on the office instead of zooming out to include a far-away employee
 private const val MAX_FIT_DISTANCE_M = 5000.0
 
 /**
  * OpenStreetMap preview of the office geofence: the office, the allowed radius and the employee's own
- * position (location dot plus accuracy circle). Pinch to zoom; the page keeps scrolling outside the map.
+ * position (a green dot). Pinch to zoom; the page keeps scrolling outside the map. The button in the corner
+ * brings the view back to the office and the employee after panning or zooming away.
  */
 @Composable
 fun GeofenceMap(data: GeofenceMapData, modifier: Modifier = Modifier) {
@@ -73,14 +84,35 @@ fun GeofenceMap(data: GeofenceMapData, modifier: Modifier = Modifier) {
         }
     }
 
-    AndroidView(
-        factory = { mapView },
-        update = { view -> view.showGeofence(data) },
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .height(190.dp)
             .clip(RoundedCornerShape(16.dp))
-    )
+    ) {
+        AndroidView(
+            factory = { mapView },
+            update = { view -> view.showGeofence(data) },
+            modifier = Modifier.fillMaxWidth().height(190.dp)
+        )
+        // Recentre: back to the office and the employee's position
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(8.dp)
+                .size(36.dp)
+                .glass(CircleShape, elevation = 4.dp)
+                .clickable { mapView.fitGeofence(data, animate = true) },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.MyLocation,
+                contentDescription = "Recentre map",
+                tint = Color(0xFF334155),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
 }
 
 @SuppressLint("ClickableViewAccessibility")
@@ -142,41 +174,36 @@ private fun MapView.showGeofence(data: GeofenceMapData) {
     })
     overlays.add(label(edge, "${data.radiusMeters} m"))
 
-    var box = BoundingBox.fromGeoPoints(listOf(office.destinationPoint(radius, 0.0), office.destinationPoint(radius, 180.0), office.destinationPoint(radius, 90.0), office.destinationPoint(radius, 270.0)))
-
+    overlays.add(marker(office, R.drawable.ic_map_office, ZONE_COLOR, 30, "Office"))
     if (data.hasUser) {
-        val user = GeoPoint(data.userLatitude!!, data.userLongitude!!)
-        val tone = if (data.isInside) INSIDE_COLOR else OUTSIDE_COLOR
-        val accuracy = (data.userAccuracyMeters ?: 0f).toDouble()
-        if (accuracy > 0) {
-            overlays.add(circle(user, accuracy).apply {
-                fillPaint.color = withAlpha(tone, 0.10f)
-                outlinePaint.apply {
-                    color = withAlpha(tone, 0.7f)
-                    strokeWidth = 1.5f * density
-                    pathEffect = DashPathEffect(floatArrayOf(4 * density, 4 * density), 0f)
-                }
-            })
-        }
-        overlays.add(marker(office, R.drawable.ic_map_office, ZONE_COLOR, 30, "Office"))
-        overlays.add(locationDot(user, tone))
-        val distance = GeofenceEvaluator.distanceMeters(office.latitude, office.longitude, user.latitude, user.longitude)
-        if (distance <= MAX_FIT_DISTANCE_M) {
-            val reach = accuracy.coerceAtMost(MAX_FIT_DISTANCE_M)
-            box = box.concat(BoundingBox.fromGeoPoints(listOf(user.destinationPoint(reach, 0.0), user.destinationPoint(reach, 180.0), user.destinationPoint(reach, 90.0), user.destinationPoint(reach, 270.0))))
-        }
-    } else {
-        overlays.add(marker(office, R.drawable.ic_map_office, ZONE_COLOR, 30, "Office"))
+        // The employee's position: just a green dot
+        overlays.add(locationDot(GeoPoint(data.userLatitude!!, data.userLongitude!!), USER_DOT_COLOR))
     }
 
-    val target = box
-    val border = (28 * density).toInt()
     if (width > 0 && height > 0) {
-        zoomToBoundingBox(target, false, border)
+        fitGeofence(data, animate = false)
     } else {
-        addOnFirstLayoutListener { _, _, _, _, _ -> zoomToBoundingBox(target, false, border) }
+        addOnFirstLayoutListener { _, _, _, _, _ -> fitGeofence(data, animate = false) }
     }
     invalidate()
+}
+
+/** Frames the office zone and, when nearby, the employee's position */
+private fun MapView.fitGeofence(data: GeofenceMapData, animate: Boolean) {
+    if (width <= 0 || height <= 0) return
+    val density = resources.displayMetrics.density
+    val office = GeoPoint(data.officeLatitude, data.officeLongitude)
+    val radius = data.radiusMeters.toDouble()
+    val points = mutableListOf(
+        office.destinationPoint(radius, 0.0), office.destinationPoint(radius, 180.0),
+        office.destinationPoint(radius, 90.0), office.destinationPoint(radius, 270.0)
+    )
+    if (data.hasUser) {
+        val user = GeoPoint(data.userLatitude!!, data.userLongitude!!)
+        val distance = GeofenceEvaluator.distanceMeters(office.latitude, office.longitude, user.latitude, user.longitude)
+        if (distance <= MAX_FIT_DISTANCE_M) points.add(user)
+    }
+    zoomToBoundingBox(BoundingBox.fromGeoPoints(points), animate, (28 * density).toInt())
 }
 
 private fun MapView.circle(center: GeoPoint, radius: Double) = Polygon(this).apply {
@@ -193,7 +220,7 @@ private fun MapView.marker(point: GeoPoint, @DrawableRes icon: Int, color: Int, 
     setOnMarkerClickListener { _, _ -> true }
 }
 
-/** The employee's location: a dot in the status colour with a white edge (same as the web map). */
+/** The employee's location: a green dot */
 private fun MapView.locationDot(point: GeoPoint, color: Int) = Marker(this).apply {
     position = point
     icon = BitmapDrawable(resources, dotBitmap(context, color))
@@ -205,19 +232,17 @@ private fun MapView.locationDot(point: GeoPoint, color: Int) = Marker(this).appl
 
 private fun dotBitmap(context: Context, color: Int): Bitmap {
     val density = context.resources.displayMetrics.density
-    val radius = 9 * density
-    val pad = 4 * density
-    val size = ((radius + pad) * 2).toInt()
+    val radius = 7 * density
+    val size = (radius * 2 + 2 * density).toInt()
     val bitmap = createBitmap(size, size)
     val canvas = Canvas(bitmap)
     val c = size / 2f
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    // Thin white edge so the dot stays visible on green map areas
     paint.color = 0xFFFFFFFF.toInt()
-    paint.setShadowLayer(3 * density, 0f, 1 * density, 0x66000000)
     canvas.drawCircle(c, c, radius, paint)
-    paint.clearShadowLayer()
     paint.color = color
-    canvas.drawCircle(c, c, radius - 3 * density, paint)
+    canvas.drawCircle(c, c, radius - 1.5f * density, paint)
     return bitmap
 }
 

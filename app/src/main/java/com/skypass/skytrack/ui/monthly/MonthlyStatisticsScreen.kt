@@ -1,5 +1,8 @@
 package com.skypass.skytrack.ui.monthly
 
+import com.skypass.skytrack.ui.components.Glass.glass
+import com.skypass.skytrack.ui.components.Glass.tintedGlass
+import com.skypass.skytrack.ui.components.GlassSurface
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -156,8 +159,9 @@ fun MonthlyStatisticsScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(SurfaceBase)
+            .background(com.skypass.skytrack.ui.components.Glass.PageColor)
     ) {
+        com.skypass.skytrack.ui.components.GlassBackdrop(Modifier.matchParentSize())
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -353,10 +357,7 @@ private fun MonthlyTopHeader(
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .shadow(elevation = 2.dp, shape = RoundedCornerShape(16.dp), spotColor = Color.Black.copy(alpha = 0.04f))
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(SurfaceCard)
-                    .border(1.dp, Slate100, RoundedCornerShape(16.dp)),
+                    .glass(RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -408,18 +409,14 @@ private fun MonthlyTopHeader(
         // Month Navigation Buttons (Chevron Cards)
         Row(
             modifier = Modifier
-                .shadow(1.dp, RoundedCornerShape(12.dp))
-                .clip(RoundedCornerShape(12.dp))
-                .background(SurfaceCard)
-                .border(1.dp, Slate100, RoundedCornerShape(12.dp))
+                .glass(RoundedCornerShape(12.dp))
                 .padding(3.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Surface(
-                onClick = onPreviousMonth,
+            GlassSurface(
                 modifier = Modifier.size(32.dp),
                 shape = RoundedCornerShape(8.dp),
-                color = SurfaceCard
+                onClick = onPreviousMonth
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -431,11 +428,10 @@ private fun MonthlyTopHeader(
                 }
             }
 
-            Surface(
-                onClick = onNextMonth,
+            GlassSurface(
                 modifier = Modifier.size(32.dp),
                 shape = RoundedCornerShape(8.dp),
-                color = SurfaceCard
+                onClick = onNextMonth
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -577,9 +573,7 @@ private fun CentralCircularDial(summary: MonthlyAttendanceSummary?, uiState: Mon
         Box(
             modifier = Modifier
                 .size(256.dp)
-                .shadow(elevation = 14.dp, shape = CircleShape, spotColor = Color.Black.copy(alpha = 0.05f))
-                .clip(CircleShape)
-                .background(SurfaceCard),
+                .glass(CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
@@ -815,12 +809,9 @@ private fun TrioCard(
     badgeTextColor: Color,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    GlassSurface(
         modifier = modifier.height(130.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = SurfaceCard,
-        border = BorderStroke(1.dp, Slate100),
-        shadowElevation = 1.dp
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(
             modifier = Modifier
@@ -922,12 +913,9 @@ private fun TimesheetExportCard(
 //        Spacer(modifier = Modifier.height(4.dp))
 
         // Timesheet PDF Action Card
-        Surface(
+        GlassSurface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            color = SurfaceCard,
-            border = BorderStroke(1.dp, Slate200.copy(alpha = 0.8f)),
-            shadowElevation = 1.dp
+            shape = RoundedCornerShape(16.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -973,9 +961,13 @@ private fun TimesheetExportCard(
                 Surface(
                     onClick = onExportClick,
                     enabled = !isExporting,
+                    modifier = Modifier.tintedGlass(
+                        RoundedCornerShape(12.dp),
+                        if (isExporting) Slate400 else BrandRed,
+                        elevation = if (isExporting) 0.dp else 5.dp
+                    ),
                     shape = RoundedCornerShape(12.dp),
-                    color = if (isExporting) Slate400 else BrandRed,
-                    shadowElevation = if (isExporting) 0.dp else 2.dp
+                    color = Color.Transparent
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -1075,7 +1067,7 @@ private fun DailyAttendanceLogSection(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Slate100)
+                    .background(Slate200.copy(alpha = 0.45f))
                     .padding(2.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
@@ -1099,11 +1091,9 @@ private fun DailyAttendanceLogSection(
 
         // Timeline Items
         if (filteredList.isEmpty()) {
-            Surface(
+            GlassSurface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = SurfaceCard,
-                border = BorderStroke(1.dp, Slate100)
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -1137,8 +1127,10 @@ private fun FilterTabButton(
 ) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(if (isSelected) SurfaceCard else Color.Transparent)
+            .then(
+                if (isSelected) Modifier.glass(RoundedCornerShape(6.dp), elevation = 2.dp)
+                else Modifier.clip(RoundedCornerShape(6.dp))
+            )
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center
@@ -1253,12 +1245,9 @@ private fun AttendanceRecordCard(item: MonthlyAttendanceDto) {
         else -> "Verified"
     }
 
-    Surface(
+    GlassSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = SurfaceCard,
-        border = BorderStroke(1.dp, Slate100),
-        shadowElevation = 0.5.dp
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
             modifier = Modifier

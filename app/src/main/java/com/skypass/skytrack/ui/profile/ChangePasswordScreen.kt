@@ -1,5 +1,8 @@
 package com.skypass.skytrack.ui.profile
 
+import com.skypass.skytrack.ui.components.Glass.glass
+import com.skypass.skytrack.ui.components.Glass.tintedGlass
+import com.skypass.skytrack.ui.components.GlassSurface
 import android.widget.Toast
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.runtime.collectAsState
@@ -141,8 +144,9 @@ fun ChangePasswordScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BgSurface)
+            .background(com.skypass.skytrack.ui.components.Glass.PageColor)
     ) {
+        com.skypass.skytrack.ui.components.GlassBackdrop(Modifier.matchParentSize())
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -287,15 +291,12 @@ private fun ChangePasswordTopBar(
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         // Circular Back Button
-        Surface(
+        GlassSurface(
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
                 .clickable(onClick = onBack),
-            shape = CircleShape,
-            color = CardBg,
-            border = BorderStroke(1.dp, Slate200.copy(alpha = 0.8f)),
-            shadowElevation = 2.dp
+            shape = CircleShape
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -353,12 +354,9 @@ private fun ChangePasswordTopBar(
 // -------------------------------------------------------------
 @Composable
 private fun NoticeSecurityCard() {
-    Surface(
+    GlassSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = CardBg,
-        border = BorderStroke(1.dp, Slate100),
-        shadowElevation = 2.dp
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
             modifier = Modifier
@@ -426,12 +424,9 @@ private fun CredentialsFormCard(
     complexityLabel: String,
     passwordsMatch: Boolean
 ) {
-    Surface(
+    GlassSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = CardBg,
-        border = BorderStroke(1.dp, Slate100),
-        shadowElevation = 2.dp
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -660,9 +655,7 @@ private fun PasswordInputField(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Slate50)
-            .border(1.dp, Slate200, RoundedCornerShape(12.dp))
+            .glass(RoundedCornerShape(12.dp), elevation = 0.dp, fill = com.skypass.skytrack.ui.components.Glass.InputFill)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         contentAlignment = Alignment.CenterStart
     ) {
@@ -755,12 +748,9 @@ private fun SecurityPolicyStandardCard(
     hasSpecial: Boolean,
     metCount: Int
 ) {
-    Surface(
+    GlassSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = CardBg,
-        border = BorderStroke(1.dp, Slate100),
-        shadowElevation = 2.dp
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -875,11 +865,10 @@ private fun ActionsAndFooter(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(elevation = 8.dp, shape = RoundedCornerShape(16.dp), spotColor = BrandCrimson.copy(alpha = 0.35f))
-                .clip(RoundedCornerShape(16.dp))
+                .tintedGlass(RoundedCornerShape(16.dp), BrandCrimson, elevation = 8.dp)
                 .clickable(onClick = onUpdatePassword),
             shape = RoundedCornerShape(16.dp),
-            color = BrandCrimson
+            color = Color.Transparent
         ) {
             Row(
                 modifier = Modifier

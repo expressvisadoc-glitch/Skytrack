@@ -1,5 +1,7 @@
 package com.skypass.skytrack.ui.home
 
+import com.skypass.skytrack.ui.components.Glass.glass
+import com.skypass.skytrack.ui.components.GlassSurface
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -134,11 +136,9 @@ fun GeofenceStatusCard(
     val content = feedback.toContent()
     val showMap = map != null && feedback.kind in setOf(Kind.INSIDE, Kind.OUTSIDE, Kind.POOR_ACCURACY)
 
-    Surface(
+    GlassSurface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = CardSurface,
-        border = BorderStroke(1.dp, Slate200)
+        shape = RoundedCornerShape(20.dp)
     ) {
       Column(modifier = Modifier.padding(14.dp)) {
         Row(verticalAlignment = Alignment.Top) {
@@ -198,9 +198,9 @@ fun GeofenceStatusCard(
                             OutlinedButton(
                                 onClick = action,
                                 shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, Slate300),
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                modifier = Modifier.height(32.dp)
+                                modifier = Modifier.height(32.dp).glass(RoundedCornerShape(12.dp), elevation = 3.dp),
+                                border = null
                             ) {
                                 Text(text = label, color = Slate800, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
@@ -216,7 +216,7 @@ fun GeofenceStatusCard(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 MapLegend(color = BrandColor, text = "Office · ${map.radiusMeters} m zone")
                 if (map.hasUser) {
-                    MapLegend(color = if (map.isInside) Emerald600 else Color(0xFF2563EB), text = "You")
+                    MapLegend(color = Emerald600, text = "You")
                 }
             }
         }

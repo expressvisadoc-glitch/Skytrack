@@ -1,5 +1,7 @@
 package com.skypass.skytrack.ui.home
 
+import com.skypass.skytrack.ui.components.Glass.glass
+import com.skypass.skytrack.ui.components.Glass.tintedGlass
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -240,8 +242,9 @@ fun HomeScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(SurfaceBase)
+            .background(com.skypass.skytrack.ui.components.Glass.PageColor)
     ) {
+        com.skypass.skytrack.ui.components.GlassBackdrop(Modifier.matchParentSize())
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -417,10 +420,7 @@ fun DashboardHeader(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .shadow(elevation = 1.dp, shape = RoundedCornerShape(12.dp), spotColor = Color.Black.copy(alpha = 0.04f))
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(CardSurface)
-                    .border(1.dp, Slate100, RoundedCornerShape(12.dp)),
+                    .glass(RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -456,10 +456,7 @@ fun DashboardHeader(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .shadow(elevation = 1.dp, shape = RoundedCornerShape(12.dp), spotColor = Color.Black.copy(alpha = 0.04f))
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(CardSurface)
-                    .border(1.dp, Slate100, RoundedCornerShape(12.dp))
+                    .glass(RoundedCornerShape(12.dp))
                     .clickable(onClick = onNotificationClick),
                 contentAlignment = Alignment.Center
             ) {
@@ -548,12 +545,11 @@ fun DateStripItem(
         label = "date_dow_color"
     )
 
-    Surface(
+    com.skypass.skytrack.ui.components.GlassSurface(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        color = bgColor,
-        border = BorderStroke(if (isSelected) 2.dp else 1.dp, borderColor),
-        shadowElevation = if (isSelected) 2.dp else 0.dp,
+        border = if (isSelected) BorderStroke(2.dp, borderColor) else null,
+        elevation = if (isSelected) 6.dp else 3.dp,
         modifier = Modifier
             .scale(scale)
             .width(42.dp)
@@ -712,14 +708,7 @@ fun OnBreakHero(
             Box(
                 modifier = Modifier
                     .size(192.dp)
-                    .shadow(
-                        elevation = 8.dp,
-                        shape = CircleShape,
-                        spotColor = Color.Black.copy(alpha = 0.08f)
-                    )
-                    .clip(CircleShape)
-                    .background(CardSurface)
-                    .border(1.dp, Slate200.copy(alpha = 0.9f), CircleShape)
+                    .glass(CircleShape)
                     .drawBehind {
                         // Dashed inner ring: inset-2.5 (10.dp) border-dashed border-amber-200/80
                         val inset = 10.dp.toPx()
@@ -790,10 +779,11 @@ fun OnBreakHero(
                         enabled = !state.isActionLoading,
                         modifier = Modifier
                             .scale(resumeScale)
-                            .height(30.dp),
+                            .height(30.dp)
+                            .tintedGlass(CircleShape, BrandColor, elevation = 4.dp),
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = BrandColor,
+                            containerColor = Color.Transparent,
                             contentColor = Color.White
                         ),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
@@ -884,14 +874,7 @@ fun CircularBreakHero(
                 modifier = Modifier
                     .scale(scale)
                     .size(192.dp)
-                    .shadow(
-                        elevation = 8.dp,
-                        shape = CircleShape,
-                        spotColor = Color.Black.copy(alpha = 0.08f)
-                    )
-                    .clip(CircleShape)
-                    .background(CardSurface)
-                    .border(1.dp, Slate200.copy(alpha = 0.9f), CircleShape)
+                    .glass(CircleShape)
                     .drawBehind {
                         // Dashed inner accent ring: inset-2.5 (10.dp) border-dashed border-amber-200/80
                         val inset = 10.dp.toPx()
@@ -1124,7 +1107,6 @@ fun AttendanceClockArea(
                         )
                     )
                     .border(1.dp, Slate100, CircleShape)
-                    .shadow(elevation = 1.dp, shape = CircleShape, spotColor = Color.Black.copy(alpha = 0.04f))
             )
 
             // 3. Circular Progress Ring (viewBox 0 0 260 260, r=118, stroke=5)
@@ -1171,15 +1153,7 @@ fun AttendanceClockArea(
                 modifier = Modifier
                     .scale(buttonScale)
                     .size(192.dp)
-                    .shadow(
-                        elevation = 16.dp,
-                        shape = CircleShape,
-                        spotColor = BrandColor.copy(alpha = 0.35f),
-                        ambientColor = BrandColor.copy(alpha = 0.15f)
-                    )
-                    .clip(CircleShape)
-                    .background(CardSurface)
-                    .border(1.dp, Slate200.copy(alpha = 0.9f), CircleShape)
+                    .glass(CircleShape)
                     .drawBehind {
                         // Dashed highlight ring
                         val inset = 8.dp.toPx()
@@ -1294,19 +1268,14 @@ fun CheckOutActionButton(
             .fillMaxWidth()
             .scale(scale)
             .height(50.dp)
-            .shadow(
-                elevation = if (isOnBreak) 0.dp else 2.dp,
-                shape = RoundedCornerShape(16.dp),
-                spotColor = Color.Black.copy(alpha = 0.04f)
-            ),
+            .glass(RoundedCornerShape(16.dp), elevation = if (isOnBreak) 0.dp else 6.dp),
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = containerBg,
+            containerColor = if (isOnBreak) Slate100.copy(alpha = 0.45f) else Color.Transparent,
             contentColor = textColor,
-            disabledContainerColor = Slate100,
+            disabledContainerColor = Slate100.copy(alpha = 0.45f),
             disabledContentColor = Slate400
         ),
-        border = BorderStroke(1.dp, if (isOnBreak) Slate200.copy(alpha = 0.5f) else Slate200),
         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
         interactionSource = interactionSource
     ) {
@@ -1407,14 +1376,7 @@ fun AttendanceStatCard(
     Box(
         modifier = modifier
             .height(104.dp)
-            .shadow(
-                elevation = 2.dp,
-                shape = RoundedCornerShape(16.dp),
-                spotColor = Color.Black.copy(alpha = 0.04f)
-            )
-            .clip(RoundedCornerShape(16.dp))
-            .background(CardSurface)
-            .border(1.dp, Slate100, RoundedCornerShape(16.dp))
+            .glass(RoundedCornerShape(16.dp))
     ) {
         // Top-right subtle pattern track
         Canvas(
