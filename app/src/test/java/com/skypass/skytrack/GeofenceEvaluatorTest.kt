@@ -39,6 +39,64 @@ class GeofenceEvaluatorTest {
         isMock = isMock
     )
 
+    // ---- QA additions: boundary behaviour and parity with the server ----------------------
+
+    /** The server accepts when distance <= radius (it rejects only on `distance > radius`). */
+    @Test
+    fun exactlyOnTheBoundaryCountsAsInside() {
+        val onBoundary = GeofenceEvaluator.evaluate(activeConfig, fixNorthOfOffice(100.0))
+        assertEquals(Kind.INSIDE, onBoundary.kind)
+        assertEquals(100, onBoundary.distanceMeters)
+    }
+
+    @Test
+    fun oneMetreBeyondTheBoundaryIsOutside() {
+        assertEquals(Kind.OUTSIDE, GeofenceEvaluator.evaluate(activeConfig, fixNorthOfOffice(101.0)).kind)
+    }
+
+    /**
+     * The in-app indicator rounds the distance to whole metres; the server compares the exact value.
+     * Between radius and radius + 0.5 m the card therefore says "Inside" while a check-in is refused.
+     * Documented so the rounding is a deliberate, known tolerance rather than a silent mismatch.
+     */
+    @Test
+    fun roundingMakesTheCardOptimisticWithinHalfAMetre() {
+        val fix = fixNorthOfOffice(100.4)
+        val serverDistance = GeofenceEvaluator.distanceMeters(officeLat, officeLng, fix.latitude, fix.longitude)
+        assertTrue("server would reject: $serverDistance > 100", serverDistance > 100.0)
+        assertEquals(Kind.INSIDE, GeofenceEvaluator.evaluate(activeConfig, fix).kind)
+    }
+
+    /** Accuracy and age limits are inclusive on both sides, matching the server's `>` comparisons. */
+    @Test
+    fun accuracyAndAgeExactlyAtTheLimitAreAccepted() {
+        assertEquals(Kind.INSIDE, GeofenceEvaluator.evaluate(activeConfig, fixNorthOfOffice(10.0, accuracy = 50f)).kind)
+        assertEquals(Kind.POOR_ACCURACY, GeofenceEvaluator.evaluate(activeConfig, fixNorthOfOffice(10.0, accuracy = 50.1f)).kind)
+        assertEquals(Kind.INSIDE, GeofenceEvaluator.evaluate(activeConfig, fixNorthOfOffice(10.0, ageMs = 120_000L)).kind)
+        assertEquals(Kind.STALE_LOCATION, GeofenceEvaluator.evaluate(activeConfig, fixNorthOfOffice(10.0, ageMs = 120_001L)).kind)
+    }
+
+    /** A mock fix is reported before anything else, however good the position looks. */
+    @Test
+    fun mockFixBeatsEveryOtherCheck() {
+        val perfectButMocked = fixNorthOfOffice(1.0, accuracy = 1f, ageMs = 0L, isMock = true)
+        assertEquals(Kind.MOCK_LOCATION, GeofenceEvaluator.evaluate(activeConfig, perfectButMocked).kind)
+    }
+
+    /**
+     * The client's haversine must agree with public.geofence_distance_m() in the database,
+     * which uses the same formula and Earth radius. Values below were computed by the server.
+     */
+    @Test
+    fun distanceAgreesWithTheServerFormula() {
+        // office 25.1891063784977, 55.2694871162002 (staging) -> point 1000 m east
+        val lat = 25.1891063784977
+        val lon = 55.2694871162002
+        val east = lon + 1000.0 / (111320.0 * kotlin.math.cos(Math.toRadians(lat)))
+        val client = GeofenceEvaluator.distanceMeters(lat, lon, lat, east)
+        assertEquals("server reported 999 m for this point", 999.0, client, 1.0)
+    }
+
     @Test
     fun distanceMatchesKnownOffsets() {
         assertEquals(0.0, GeofenceEvaluator.distanceMeters(officeLat, officeLng, officeLat, officeLng), 0.001)

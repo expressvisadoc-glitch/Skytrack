@@ -81,9 +81,16 @@ data class SalaryDto(
     @SerializedName("absenceAmount") val absenceAmount: Double? = null,
     @SerializedName("lopLeaveDays") val lopLeaveDays: Double? = null,
     @SerializedName("lopLeaveAmount") val lopLeaveAmount: Double? = null,
+    /** "marks" = groups of late marks cost LOP days; "per_minute" = every late minute is deducted */
+    @SerializedName("latePenaltyMode") val latePenaltyMode: String? = null,
     @SerializedName("lateMarks") val lateMarks: Int? = null,
     @SerializedName("lateMarksPerUnit") val lateMarksPerUnit: Int? = null,
     @SerializedName("lateLopDaysPerUnit") val lateLopDaysPerUnit: Double? = null,
+    @SerializedName("lateMinutes") val lateMinutes: Int? = null,
+    @SerializedName("lateDaysCharged") val lateDaysCharged: Int? = null,
+    @SerializedName("latePerMinuteBasis") val latePerMinuteBasis: String? = null,
+    @SerializedName("latePerMinuteAmount") val latePerMinuteAmount: Double? = null,
+    @SerializedName("latePerMinuteRate") val latePerMinuteRate: Double? = null,
     @SerializedName("lateLopDays") val lateLopDays: Double? = null,
     @SerializedName("lateAmount") val lateAmount: Double? = null,
     @SerializedName("totalLopDays") val totalLopDays: Double? = null,
@@ -97,7 +104,9 @@ data class SalaryDayDto(
     @SerializedName("date") val date: String,
     @SerializedName("type") val type: String,
     @SerializedName("days") val days: Double? = null,
-    @SerializedName("amount") val amount: Double? = null
+    @SerializedName("amount") val amount: Double? = null,
+    /** Late days only: minutes charged under the per-minute option */
+    @SerializedName("minutes") val minutes: Int? = null
 )
 
 data class PayslipRequest(

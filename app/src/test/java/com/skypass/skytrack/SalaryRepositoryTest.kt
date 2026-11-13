@@ -3,6 +3,7 @@ package com.skypass.skytrack
 import com.skypass.skytrack.data.remote.*
 import com.skypass.skytrack.data.repository.AttendanceApiException
 import com.skypass.skytrack.data.repository.SalaryRepository
+import com.skypass.skytrack.ui.home.formatMinutesLate
 import com.google.gson.Gson
 import kotlinx.coroutines.runBlocking
 import okhttp3.MediaType.Companion.toMediaType
@@ -53,6 +54,55 @@ class SalaryRepositoryTest {
          "totalDeductions":3125,"netPay":26875,"flags":[],
          "days":[{"date":"2026-11-02","type":"absent","days":1,"amount":1250}]}}
     """.trimIndent()
+
+    /** Option 2: the server charges every late minute and the app shows the minutes and the rate. */
+    private val perMinuteJson = """
+        {"success":true,"salary":{"status":"ok","month":"2026-10","monthlyGross":20000,"workingDaysInMonth":24,
+         "perDayRate":833.33,"earnedGross":20000,"absenceDays":1,"absenceAmount":833.33,"lopLeaveDays":1,"lopLeaveAmount":833.33,
+         "latePenaltyMode":"per_minute","lateMarks":5,"lateMarksPerUnit":2,"lateLopDaysPerUnit":0.5,
+         "lateMinutes":152,"lateDaysCharged":5,"latePerMinuteBasis":"pro_rata","latePerMinuteAmount":0,
+         "latePerMinuteRate":1.7361,"lateLopDays":0.32,"lateAmount":263.89,
+         "totalDeductions":1930.56,"netPay":18069,"flags":["joining_date_missing"],
+         "days":[{"date":"2026-10-27","type":"late","days":0.125,"amount":104.17,"minutes":60}]}}
+    """.trimIndent()
+
+    @Test
+    fun parsesThePerMinuteLateOption() = runBlocking {
+        val api = FakeApi { Gson().fromJson(perMinuteJson, SalarySummaryResponse::class.java) }
+        val salary = SalaryRepository(api).currentMonth("token").getOrThrow()
+
+        assertEquals("per_minute", salary.latePenaltyMode)
+        assertEquals(152, salary.lateMinutes)
+        assertEquals(5, salary.lateDaysCharged)
+        assertEquals("pro_rata", salary.latePerMinuteBasis)
+        assertEquals(1.7361, salary.latePerMinuteRate!!, 0.0001)
+        assertEquals(263.89, salary.lateAmount!!, 0.01)
+        assertEquals(18069.0, salary.netPay!!, 0.0)
+
+        val lateDay = salary.days!!.single()
+        assertEquals("late", lateDay.type)
+        assertEquals(60, lateDay.minutes)
+        assertEquals(104.17, lateDay.amount!!, 0.01)
+    }
+
+    @Test
+    fun keepsTheLateMarksOptionWhenTheServerSendsIt() = runBlocking {
+        val api = FakeApi { Gson().fromJson(sampleJson, SalarySummaryResponse::class.java) }
+        val salary = SalaryRepository(api).currentMonth("token").getOrThrow()
+
+        // The older "marks" option carries no minutes; the card must not show a per-minute line
+        assertEquals(null, salary.latePenaltyMode)
+        assertEquals(null, salary.lateMinutes)
+        assertEquals(0.5, salary.lateLopDays!!, 0.0)
+    }
+
+    @Test
+    fun formatsLateMinutesForTheCard() {
+        assertEquals("0 min", formatMinutesLate(null))
+        assertEquals("45 min", formatMinutesLate(45))
+        assertEquals("1 hr", formatMinutesLate(60))
+        assertEquals("2 hr 32 min", formatMinutesLate(152))
+    }
 
     @Test
     fun parsesTheServerShapeAndRequestsTheCurrentMonth() = runBlocking {

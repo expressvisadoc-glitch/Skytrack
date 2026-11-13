@@ -138,7 +138,10 @@ object PayslipPdfGenerator {
         row("Less: Absences", formatDays(salary.absenceDays), "- ${formatAmount(salary.absenceAmount)}", red)
         row("Less: Loss of pay (LOP) leave", formatDays(salary.lopLeaveDays), "- ${formatAmount(salary.lopLeaveAmount)}", red)
         row(
-            "Less: Late marks (${salary.lateMarks ?: 0} marks, ${salary.lateMarksPerUnit ?: "-"} = ${formatDays(salary.lateLopDaysPerUnit)} day)",
+            if (salary.latePenaltyMode == "per_minute")
+                "Less: Late check-ins (${salary.lateMinutes ?: 0} min over ${salary.lateMarks ?: 0} day(s))"
+            else
+                "Less: Late marks (${salary.lateMarks ?: 0} marks, ${salary.lateMarksPerUnit ?: "-"} = ${formatDays(salary.lateLopDaysPerUnit)} day)",
             formatDays(salary.lateLopDays),
             "- ${formatAmount(salary.lateAmount)}",
             red

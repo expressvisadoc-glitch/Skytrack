@@ -49,6 +49,15 @@ private val rupeeFormat: NumberFormat = NumberFormat.getCurrencyInstance(Locale(
 
 internal fun formatRupees(amount: Double?): String = amount?.let { rupeeFormat.format(it) } ?: "—"
 
+/** "45 min" / "1 hr 5 min" for late minutes on the salary card. */
+internal fun formatMinutesLate(minutes: Int?): String {
+    val m = (minutes ?: 0).coerceAtLeast(0)
+    if (m < 60) return "$m min"
+    val hours = m / 60
+    val rest = m % 60
+    return if (rest == 0) "$hours hr" else "$hours hr $rest min"
+}
+
 internal fun formatDayCount(days: Double?): String {
     val d = days ?: 0.0
     return if (d % 1.0 == 0.0) d.toInt().toString() else String.format(Locale.ENGLISH, "%.2f", d).trimEnd('0').trimEnd('.')
@@ -154,6 +163,7 @@ fun SalaryCard(
 
 @Composable
 private fun SalaryBreakdown(salary: SalaryDto) {
+    val isPerMinute = salary.latePenaltyMode == "per_minute"
     val lateRule = if (salary.lateMarksPerUnit != null && salary.lateLopDaysPerUnit != null) {
         " (${salary.lateMarksPerUnit} = ${formatDayCount(salary.lateLopDaysPerUnit)} day)"
     } else ""
@@ -164,7 +174,19 @@ private fun SalaryBreakdown(salary: SalaryDto) {
         }
         add(Triple("Absences", "${formatDayCount(salary.absenceDays)} day(s)", "−${formatRupees(salary.absenceAmount)}"))
         add(Triple("Unpaid (LOP) leave", "${formatDayCount(salary.lopLeaveDays)} day(s)", "−${formatRupees(salary.lopLeaveAmount)}"))
-        add(Triple("Late check-ins", "${salary.lateMarks ?: 0} mark(s)$lateRule → ${formatDayCount(salary.lateLopDays)} day", "−${formatRupees(salary.lateAmount)}"))
+        if (isPerMinute) {
+            val minuteRate = salary.latePerMinuteRate ?: salary.latePerMinuteAmount
+            val rateText = if (minuteRate != null && minuteRate > 0) " · ₹%.2f/min".format(minuteRate) else ""
+            add(
+                Triple(
+                    "Late check-ins (per minute)",
+                    "${formatMinutesLate(salary.lateMinutes)} late over ${salary.lateMarks ?: 0} day(s)$rateText",
+                    "−${formatRupees(salary.lateAmount)}"
+                )
+            )
+        } else {
+            add(Triple("Late check-ins", "${salary.lateMarks ?: 0} mark(s)$lateRule → ${formatDayCount(salary.lateLopDays)} day", "−${formatRupees(salary.lateAmount)}"))
+        }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -199,7 +221,11 @@ private fun SalaryBreakdown(salary: SalaryDto) {
                 ) {
                     Text("$dateLabel · ${dayTypeLabels[day.type] ?: day.type}", color = Slate700, fontSize = 12.sp, modifier = Modifier.weight(1f))
                     Text(
-                        if (day.type == "late") "late mark" else "−${formatRupees(day.amount)}",
+                        when {
+                            day.type != "late" -> "−${formatRupees(day.amount)}"
+                            isPerMinute -> "${formatMinutesLate(day.minutes)} · −${formatRupees(day.amount)}"
+                            else -> "late mark"
+                        },
                         color = Slate500,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
