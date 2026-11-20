@@ -12,6 +12,7 @@ import com.skypass.skytrack.data.remote.SkyTrackApi
 import java.io.IOException
 import java.time.Instant
 import java.time.LocalDate
+import com.skypass.skytrack.data.reminders.ReminderScheduler
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,7 +21,8 @@ class AttendanceRepository @Inject constructor(
     private val api: SkyTrackApi,
     private val attendanceDao: AttendanceDao,
     private val pendingActionDao: PendingActionDao,
-    private val connectivityObserver: ConnectivityObserver
+    private val connectivityObserver: ConnectivityObserver,
+    private val reminderScheduler: ReminderScheduler
 ) {
     suspend fun getToday(token: String): Result<AttendanceDto?> = runCatching {
         val todayStr = LocalDate.now().toString()
@@ -47,6 +49,8 @@ class AttendanceRepository @Inject constructor(
             if (attendance != null) {
                 attendanceDao.insertOrUpdate(AttendanceCacheEntity.fromDto(attendance, todayStr))
             }
+            // Fresh from the server: keep the 30-minute break reminder in step
+            reminderScheduler.syncBreak(attendance)
             attendance
         } catch (e: Exception) {
             if (e is AttendanceApiException) {
@@ -135,6 +139,11 @@ class AttendanceRepository @Inject constructor(
                 if (attendance != null) {
                     attendanceDao.insertOrUpdate(AttendanceCacheEntity.fromDto(attendance, todayStr))
                 }
+                when {
+                    attendance != null -> reminderScheduler.syncBreak(attendance)
+                    action == "start_break" -> reminderScheduler.scheduleBreak(Instant.now().toString())
+                    action == "resume_work" || action == "end_work" -> reminderScheduler.cancelBreak()
+                }
                 attendance
             } catch (httpException: retrofit2.HttpException) {
                 val friendly = com.skypass.skytrack.data.remote.ApiErrorExtractor.getMessage(
@@ -212,6 +221,7 @@ class AttendanceRepository @Inject constructor(
         }
 
         attendanceDao.insertOrUpdate(AttendanceCacheEntity.fromDto(updatedDto, todayStr))
+        reminderScheduler.syncBreak(updatedDto)
         return updatedDto
     }
 }

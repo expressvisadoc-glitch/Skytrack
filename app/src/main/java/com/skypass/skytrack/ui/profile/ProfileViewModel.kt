@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import android.graphics.Bitmap
 import com.skypass.skytrack.data.local.Session
 import com.skypass.skytrack.data.local.SessionDataStore
+import com.skypass.skytrack.data.notifications.NotificationPreferences
 import com.skypass.skytrack.data.repository.AuthRepository
 import com.skypass.skytrack.data.repository.LeaveRepository
 import com.skypass.skytrack.data.repository.MonthlyStatisticsRepository
@@ -15,8 +16,10 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -39,11 +42,20 @@ class ProfileViewModel @Inject constructor(
     private val leaveRepository: LeaveRepository,
     private val sessionDataStore: SessionDataStore,
     private val authRepository: AuthRepository,
+    private val notificationPreferences: NotificationPreferences,
     val appUpdateManager: com.skypass.skytrack.data.update.AppUpdateManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+
+    /** The notification switch on this screen (on by default) */
+    val notificationsEnabled: StateFlow<Boolean> = notificationPreferences.enabled
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        viewModelScope.launch { notificationPreferences.setEnabled(enabled) }
+    }
 
     fun checkForUpdatesManual(onResult: (isUpdateAvailable: Boolean, message: String) -> Unit) {
         viewModelScope.launch {

@@ -1,6 +1,12 @@
 package com.skypass.skytrack
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.skypass.skytrack.data.notifications.NotificationPreferences
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -54,6 +60,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var appUpdateManager: com.skypass.skytrack.data.update.AppUpdateManager
+
+    @Inject
+    lateinit var notificationPreferences: NotificationPreferences
 
     private val loginViewModel: LoginViewModel by viewModels()
     private val homeViewModel: HomeViewModel by viewModels()
@@ -111,6 +120,21 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(Unit) {
                         authRepository.session.first()
                         isSessionLoaded = true
+                    }
+
+                    // Android 13+: ask once after sign-in; afterwards the Profile switch handles it
+                    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestPermission()
+                    ) { }
+                    LaunchedEffect(session?.token) {
+                        if (session == null) return@LaunchedEffect
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
+                            notificationPreferences.isEnabled() &&
+                            notificationPreferences.claimPermissionPrompt()
+                        ) {
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
                     }
 
                     // Check for updates asynchronously once the splash finishes
