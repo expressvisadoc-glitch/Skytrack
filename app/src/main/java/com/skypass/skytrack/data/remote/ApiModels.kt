@@ -41,7 +41,11 @@ data class EmployeeDto(
 
 data class AttendanceRequest(
     @SerializedName("action") val action: String,
-    @SerializedName("token") val token: String
+    @SerializedName("token") val token: String,
+    /** When the employee tapped the button (ISO-8601). Lets the server record actions sent late at their real time. */
+    @SerializedName("clientTime") val clientTime: String? = null,
+    /** The phone's clock when the request is sent, so the server can correct a phone whose clock is wrong */
+    @SerializedName("clientSentAt") val clientSentAt: String? = null
 )
 
 data class AttendanceResponse(

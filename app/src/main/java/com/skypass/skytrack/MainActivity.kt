@@ -84,7 +84,17 @@ class MainActivity : ComponentActivity() {
                     val networkStatus by connectivityObserver.observe().collectAsState(
                         initial = if (connectivityObserver.isConnected()) ConnectivityObserver.Status.AVAILABLE else ConnectivityObserver.Status.UNAVAILABLE
                     )
-                    val isSyncing by offlineSyncManager.isSyncing.collectAsState()
+                    val isSyncingNow by offlineSyncManager.isSyncing.collectAsState()
+                    // Most taps reach the server within a moment; only a longer sync shows the banner
+                    var isSyncing by remember { mutableStateOf(false) }
+                    LaunchedEffect(isSyncingNow) {
+                        if (isSyncingNow) {
+                            kotlinx.coroutines.delay(1500)
+                            isSyncing = true
+                        } else {
+                            isSyncing = false
+                        }
+                    }
                     val isOffline = networkStatus != ConnectivityObserver.Status.AVAILABLE
 
                     val loginState by loginViewModel.state.collectAsState()

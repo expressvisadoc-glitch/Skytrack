@@ -78,7 +78,7 @@ fun OfflineBanner(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Offline Mode • Working from local cache",
+                    text = "Offline • Your actions are saved and will sync automatically",
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium

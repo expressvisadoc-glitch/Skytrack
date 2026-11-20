@@ -33,3 +33,7 @@
 # Preserve line numbers and source files for clean stack traces
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+# Outbox: queued actions are stored as JSON (LeaveSubmitPayload, AttendancePayload, ...). Their field
+# names must stay the same from one app version to the next, or actions saved before an update are lost.
+-keep class com.skypass.skytrack.data.sync.** { *; }
+-keepclassmembers class com.skypass.skytrack.data.sync.** { *; }

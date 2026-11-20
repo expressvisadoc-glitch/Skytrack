@@ -21,6 +21,7 @@ import com.skypass.skytrack.data.sync.LeaveSubmitPayload
 import java.io.IOException
 import java.time.LocalDate
 import java.util.UUID
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -30,7 +31,9 @@ class LeaveRepository @Inject constructor(
     private val leaveDao: LeaveDao,
     private val pendingActionDao: PendingActionDao,
     private val connectivityObserver: ConnectivityObserver,
-    private val gson: Gson
+    private val gson: Gson,
+    private val offlineSyncManager: com.skypass.skytrack.data.sync.OfflineSyncManager,
+    private val sessionDataStore: com.skypass.skytrack.data.local.SessionDataStore
 ) {
     suspend fun submit(
         token: String,
@@ -88,9 +91,11 @@ class LeaveRepository @Inject constructor(
             from = from,
             to = to,
             type = type,
-            reason = reason
+            reason = reason,
+            employeeId = sessionDataStore.session.first()?.employeeId
         )
-        pendingActionDao.insert(
+        // Delivered by the outbox (WorkManager) as soon as there is a network, even if the app is closed
+        offlineSyncManager.queue(
             PendingActionEntity(
                 actionType = "LEAVE_SUBMIT",
                 token = token,
@@ -134,7 +139,7 @@ class LeaveRepository @Inject constructor(
                 )
             }
 
-            val list = response.leaves.orEmpty()
+            val list = withUnsentChanges(response.leaves.orEmpty())
             leaveDao.replaceLeaveHistory(list.mapIndexed { idx, dto -> LeaveHistoryCacheEntity.fromDto(dto, idx) })
             list
         } catch (e: Exception) {
@@ -259,6 +264,9 @@ class LeaveRepository @Inject constructor(
         token: String,
         requestId: String
     ): Result<LeaveDto?> = runCatching {
+        if (!connectivityObserver.isConnected()) {
+            return@runCatching queueLeaveCancel(token, requestId)
+        }
         try {
             val response = api.cancelLeave(
                 BuildConfig.SKYTRACK_API_URL,
@@ -295,7 +303,53 @@ class LeaveRepository @Inject constructor(
                 "Unable to cancel leave request."
             )
             throw LeaveApiException(null, userMsg)
+        } catch (ioException: IOException) {
+            queueLeaveCancel(token, requestId)
         }
+    }
+
+    /**
+     * Requests and cancellations saved on the phone but not yet sent stay visible after a refresh
+     * from the server: unsent requests stay at the top, unsent cancellations stay cancelled.
+     */
+    private suspend fun withUnsentChanges(fromServer: List<LeaveDto>): List<LeaveDto> {
+        val pending = pendingActionDao.getPendingActions()
+        if (pending.none { it.actionType == "LEAVE_SUBMIT" || it.actionType == "LEAVE_CANCEL" }) return fromServer
+        val cancelled = pending.filter { it.actionType == "LEAVE_CANCEL" }.mapNotNull { action ->
+            action.payloadJson?.let { runCatching { gson.fromJson(it, com.skypass.skytrack.data.sync.LeaveCancelPayload::class.java) }.getOrNull()?.requestId }
+        }.toSet()
+        val unsentRequests = if (pending.any { it.actionType == "LEAVE_SUBMIT" }) {
+            leaveDao.getLeaveHistory().map { it.toDto() }.filter { it.id?.startsWith("pending_") == true }
+        } else {
+            emptyList()
+        }
+        return unsentRequests + fromServer.map { leave ->
+            if (leave.id in cancelled || leave.requestId in cancelled) leave.copy(status = "cancelled") else leave
+        }
+    }
+
+    /** Offline: marks the leave cancelled on the phone and sends the cancellation when online */
+    private suspend fun queueLeaveCancel(token: String, requestId: String): LeaveDto? {
+        if (requestId.startsWith("pending_")) {
+            throw LeaveApiException(
+                null,
+                "This request has not reached the server yet. You can cancel it once you are back online."
+            )
+        }
+        offlineSyncManager.queue(
+            PendingActionEntity(
+                actionType = "LEAVE_CANCEL",
+                token = token,
+                payloadJson = gson.toJson(
+                    com.skypass.skytrack.data.sync.LeaveCancelPayload(requestId, sessionDataStore.session.first()?.employeeId)
+                )
+            )
+        )
+        val current = leaveDao.getLeaveHistory()
+        leaveDao.replaceLeaveHistory(current.map { cached ->
+            if (cached.id == requestId || cached.requestId == requestId) cached.copy(status = "cancelled") else cached
+        })
+        return null
     }
 }
 
